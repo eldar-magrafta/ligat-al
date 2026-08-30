@@ -267,8 +267,8 @@
         .mini-row[data-zone="euro"]::before { background: var(--euro); }
         .mini-row[data-zone="relegate"]::before { background: var(--relegate); }
         .mini-rank { flex: 0 0 22px; text-align: center; font-weight: 800; font-size: 13px; color: var(--pitch-dark); font-variant-numeric: tabular-nums; }
-        .mini-logo { flex: 0 0 26px; width: 26px; height: 26px; border-radius: 7px; background: #fff; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; display: grid; place-items: center; }
-        .mini-logo img { width: 100%; height: 100%; object-fit: contain; padding: 2px; }
+        .mini-logo { flex: 0 0 26px; width: 26px; height: 26px; border-radius: 5px; background: #fff; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; display: grid; place-items: center; }
+        .mini-logo img { width: 100%; height: 100%; object-fit: contain; padding: 4px; }
         .mini-name { font-size: 13px; font-weight: 600; }
         .mini-bonus { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
         .mini-bonus b { color: var(--ink); }
@@ -343,14 +343,16 @@
 
         .logo {
             flex: 0 0 42px; width: 42px; height: 42px;
-            border-radius: 12px;
+            border-radius: 8px;
             display: grid; place-items: center;
             font-weight: 800; font-size: 14px; color: #fff;
             overflow: hidden;
         }
-        /* Teams with a real crest sit on white so the full logo is always visible */
+        /* Teams with a real crest sit on white so the full logo is always visible.
+           Generous padding + small radius keep every edge/corner of the crest inside
+           the rounded box, so nothing is ever clipped. */
         .logo:has(img) { background: #fff !important; box-shadow: inset 0 0 0 1px var(--line); }
-        .logo img { width: 100%; height: 100%; object-fit: contain; padding: 3px; }
+        .logo img { width: 100%; height: 100%; object-fit: contain; padding: 6px; }
 
         .name { flex: 1; min-width: 0; }
         .name b { display: block; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
