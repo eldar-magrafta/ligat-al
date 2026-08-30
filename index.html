@@ -528,6 +528,15 @@
                     <small class="bonus-hint">מי תסיים יותר משחקים עם עשרה שחקנים מאשר עם אחד עשר</small>
                     <select id="bonusReds" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
                 </label>
+                <label class="bonus-q">
+                    <span>מלך השערים · אנדר / אובר 19.5 שערים</span>
+                    <small class="bonus-hint">יסחוב את ההתקפה על הגב או ידשדש עם הפנדלים בלבד</small>
+                    <select id="bonusTop" class="bonus-select">
+                        <option value="">בחרו…</option>
+                        <option value="under">אנדר 19.5</option>
+                        <option value="over">אובר 19.5</option>
+                    </select>
+                </label>
             </div>
         </section>
 
@@ -574,6 +583,14 @@
                 <label class="bonus-q">
                     <span>הקבוצה שקיבלה הכי הרבה אדומים</span>
                     <select id="adminBonusReds" class="bonus-select"><option value="">— טרם נקבע —</option></select>
+                </label>
+                <label class="bonus-q">
+                    <span>מלך השערים · אנדר / אובר 19.5</span>
+                    <select id="adminBonusTop" class="bonus-select">
+                        <option value="">— טרם נקבע —</option>
+                        <option value="under">אנדר 19.5</option>
+                        <option value="over">אובר 19.5</option>
+                    </select>
                 </label>
             </div>
 
@@ -672,7 +689,7 @@
     let locked = false;               // true once the deadline passes
     let activeTab = 'guess';
     let guessSortable = null, adminSortable = null;
-    let bonus = { court: '', coach: '', pens: '', reds: '' }; // bonus predictions (team ids)
+    let bonus = { court: '', coach: '', pens: '', reds: '', top: '' }; // bonus predictions (team ids; top = under/over)
 
     // ================= Firebase init =================
     function configured() {
@@ -833,8 +850,8 @@
                     setHint('נטען ניחוש שמור' + (when ? ' מ־' + when : ''));
                 }
                 if (data.bonus) {
-                    ['court', 'coach', 'pens', 'reds'].forEach(k => {
-                        bonus[k] = teamById(data.bonus[k]) ? data.bonus[k] : '';
+                    BONUS_KEYS.forEach(k => {
+                        bonus[k] = isValidBonus(k, data.bonus[k]) ? data.bonus[k] : '';
                     });
                     applyBonusToUI();
                 }
@@ -965,15 +982,22 @@
         '#bonusCourt': 'court',
         '#bonusCoach': 'coach',
         '#bonusPens':  'pens',
-        '#bonusReds':  'reds'
+        '#bonusReds':  'reds',
+        '#bonusTop':   'top'
     };
-    const BONUS_KEYS = ['court', 'coach', 'pens', 'reds'];
+    // Team-based bonus keys (their values are team ids); 'top' is under/over instead.
+    const BONUS_TEAM_KEYS = ['court', 'coach', 'pens', 'reds'];
+    const BONUS_KEYS = ['court', 'coach', 'pens', 'reds', 'top'];
     const BONUS_POINTS = 5; // each correct bonus guess is worth +5 points
+    const TOP_LABELS = { under: 'אנדר 19.5', over: 'אובר 19.5' }; // מלך שערים option labels
     // The admin's <select>s where the real bonus answers are set at season end
     const ADMIN_BONUS_FIELDS = {
         court: '#adminBonusCourt', coach: '#adminBonusCoach',
-        pens:  '#adminBonusPens',  reds:  '#adminBonusReds'
+        pens:  '#adminBonusPens',  reds:  '#adminBonusReds',
+        top:   '#adminBonusTop'
     };
+    // A bonus value is valid if it's a real team (team keys) or under/over (the 'top' key).
+    const isValidBonus = (key, val) => key === 'top' ? !!TOP_LABELS[val] : !!teamById(val);
 
     function fillTeamOptions(el) {
         TEAMS.forEach(t => {
@@ -986,12 +1010,12 @@
     function setupBonus() {
         Object.keys(BONUS_FIELDS).forEach(sel => {
             const el = $(sel), key = BONUS_FIELDS[sel];
-            fillTeamOptions(el);
+            if (BONUS_TEAM_KEYS.includes(key)) fillTeamOptions(el); // 'top' options are in the HTML
             el.addEventListener('change', e => { bonus[key] = e.target.value; });
         });
         // Admin's real-answer dropdowns (saved with the standings)
-        Object.values(ADMIN_BONUS_FIELDS).forEach(sel => {
-            const el = $(sel);
+        BONUS_TEAM_KEYS.forEach(key => {
+            const el = $(ADMIN_BONUS_FIELDS[key]);
             if (el) fillTeamOptions(el);
         });
     }
@@ -1017,7 +1041,8 @@
                 order: order.slice(),
                 bonus: {
                     court: bonus.court || '', coach: bonus.coach || '',
-                    pens:  bonus.pens  || '', reds:  bonus.reds  || ''
+                    pens:  bonus.pens  || '', reds:  bonus.reds  || '',
+                    top:   bonus.top   || ''
                 },
                 updatedAt: Date.now()
             });
@@ -1109,11 +1134,13 @@
                     </div>`;
                 }).join('');
                 const teamName = id => { const t = teamById(id); return t ? t.he : '—'; };
+                const topName = v => TOP_LABELS[v] || '—';
                 const bonusHtml = pl.bonus ? `<div class="mini-bonus">
                         <div><span>🎯 אלופת בית הדין:</span> <b>${teamName(pl.bonus.court)}</b></div>
                         <div><span>🎯 הראשונה שמפטרת מאמן:</span> <b>${teamName(pl.bonus.coach)}</b></div>
                         <div><span>🎯 הכי הרבה פנדלים:</span> <b>${teamName(pl.bonus.pens)}</b></div>
                         <div><span>🎯 הכי הרבה אדומים:</span> <b>${teamName(pl.bonus.reds)}</b></div>
+                        <div><span>🎯 מלך השערים:</span> <b>${topName(pl.bonus.top)}</b></div>
                     </div>` : '';
                 return `<div class="all-card${mine ? ' me' : ''}">
                     <button class="all-head" type="button">
@@ -1197,7 +1224,7 @@
                 const ans = snap.data().bonusAnswers || {};
                 BONUS_KEYS.forEach(k => {
                     const el = $(ADMIN_BONUS_FIELDS[k]);
-                    if (el) el.value = teamById(ans[k]) ? ans[k] : '';
+                    if (el) el.value = isValidBonus(k, ans[k]) ? ans[k] : '';
                 });
             } else {
                 adminOrder = TEAMS.map(t => t.id);
