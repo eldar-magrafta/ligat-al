@@ -152,6 +152,33 @@
         }
         .config-warn code { background: #fff; padding: 1px 5px; border-radius: 5px; direction: ltr; display: inline-block; }
 
+        /* username / password login */
+        .or-divider {
+            display: flex; align-items: center; gap: 10px;
+            margin: 20px 0 16px; color: var(--muted); font-size: 13px; font-weight: 600;
+        }
+        .or-divider::before, .or-divider::after {
+            content: ""; flex: 1; height: 1px; background: var(--line);
+        }
+        .user-form { display: flex; flex-direction: column; gap: 10px; text-align: right; }
+        .user-form input {
+            font: inherit; font-size: 15px; padding: 11px 13px;
+            border: 1px solid var(--line); border-radius: 12px; background: #fafdfb;
+            direction: ltr; text-align: left;
+        }
+        .user-form input:focus { outline: none; border-color: var(--pitch-light); background: #fff; }
+        .user-actions { display: flex; gap: 8px; margin-top: 2px; }
+        .user-actions .btn-primary, .user-actions .btn-outline { flex: 1; }
+        .btn-outline {
+            border: 1px solid var(--pitch-light); background: #fff; color: var(--pitch-dark);
+            border-radius: 12px; padding: 11px 14px; font: inherit; font-weight: 700;
+            font-size: 15px; cursor: pointer;
+        }
+        .btn-outline:active { transform: scale(.98); }
+        .user-msg { font-size: 13px; line-height: 1.5; min-height: 1px; }
+        .user-msg.err { color: var(--danger); }
+        .user-msg.ok { color: var(--pitch); }
+
         /* ---------- Tabs ---------- */
         .tabs {
             display: none;
@@ -403,11 +430,24 @@
         <!-- Login -->
         <section class="login" id="loginCard" style="display:none">
             <h2>התחברות</h2>
-            <p>התחברו עם חשבון Google כדי לשמור את הניחוש שלכם.</p>
+            <p>התחברו כדי לשמור את הניחוש שלכם.</p>
             <button class="gbtn" id="googleBtn">
                 <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
                 התחברות עם Google
             </button>
+
+            <div class="or-divider"><span>או עם שם משתמש</span></div>
+
+            <form id="userForm" class="user-form" autocomplete="off">
+                <input id="uInput" type="text" inputmode="latin" placeholder="שם משתמש (אותיות/ספרות באנגלית)" autocomplete="username">
+                <input id="pInput" type="password" placeholder="סיסמה (5 תווים לפחות)" autocomplete="current-password">
+                <div class="user-actions">
+                    <button type="submit" class="btn-primary" id="loginUserBtn">כניסה</button>
+                    <button type="button" class="btn-outline" id="registerUserBtn">הרשמה</button>
+                </div>
+                <div class="user-msg" id="userMsg"></div>
+            </form>
+
             <div class="config-warn" id="configWarn"></div>
         </section>
 
@@ -492,7 +532,8 @@
     import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
     import {
         getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged,
-        signOut, setPersistence, browserLocalPersistence
+        signOut, setPersistence, browserLocalPersistence,
+        createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile
     } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
     import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
 
@@ -513,6 +554,17 @@
 
     // Only this account can edit the real league table (the "עדכון טבלה" tab).
     const ADMIN_EMAIL = 'eldar71191@gmail.com';
+
+    // ── Username login ──
+    // Firebase Auth needs an email, so each username maps to a synthetic address
+    // under this (non-real) domain. Firebase enforces its uniqueness for us.
+    const USER_EMAIL_DOMAIN = '@users.ligat-al.app';
+    // Firebase requires passwords ≥ 6 chars; we allow 5, so we append a fixed
+    // internal salt before sending to Firebase. Users only ever type 5+.
+    const PW_SALT = '#La!';
+    const MIN_PW = 5;
+    const usernameToEmail = u => u.trim().toLowerCase() + USER_EMAIL_DOMAIN;
+    const isSyntheticEmail = e => typeof e === 'string' && e.endsWith(USER_EMAIL_DOMAIN);
 
     // Submission deadline — 30 Aug 2026, 23:59:59 Israel time (IDT = UTC+3).
     // After this moment guesses lock and can no longer be saved/changed.
@@ -595,6 +647,74 @@
         try { await signOut(auth); } catch (_) {}
     }
 
+    // ── Username + password ──
+    function userMsg(text, kind) {
+        const el = $('#userMsg');
+        el.textContent = text || '';
+        el.className = 'user-msg' + (kind ? ' ' + kind : '');
+    }
+
+    function readCreds() {
+        const username = $('#uInput').value.trim();
+        const password = $('#pInput').value;
+        if (!/^[A-Za-z0-9._-]{3,20}$/.test(username)) {
+            userMsg('שם משתמש: 3–20 תווים באנגלית, ספרות או . _ -', 'err');
+            return null;
+        }
+        if (password.length < MIN_PW) {
+            userMsg('הסיסמה צריכה להכיל לפחות ' + MIN_PW + ' תווים', 'err');
+            return null;
+        }
+        return { username, email: usernameToEmail(username), password: password + PW_SALT };
+    }
+
+    async function registerWithUsername() {
+        const c = readCreds();
+        if (!c) return;
+        setUserBusy(true);
+        try {
+            const cred = await createUserWithEmailAndPassword(auth, c.email, c.password);
+            await updateProfile(cred.user, { displayName: c.username });
+            currentUser = cred.user;   // ensure displayName is available immediately
+            // onAuthStateChanged will fire and call enterApp()
+        } catch (e) {
+            if (e && e.code === 'auth/email-already-in-use')
+                userMsg('שם המשתמש כבר תפוס — בחרו אחר או לחצו "כניסה"', 'err');
+            else if (e && e.code === 'auth/operation-not-allowed')
+                userMsg('התחברות עם שם משתמש עדיין לא הופעלה ב-Firebase', 'err');
+            else
+                userMsg('ההרשמה נכשלה, נסו שוב', 'err');
+        } finally {
+            setUserBusy(false);
+        }
+    }
+
+    async function signInWithUsername() {
+        const c = readCreds();
+        if (!c) return;
+        setUserBusy(true);
+        try {
+            await signInWithEmailAndPassword(auth, c.email, c.password);
+            // onAuthStateChanged will fire and call enterApp()
+        } catch (e) {
+            const code = e && e.code;
+            if (code === 'auth/invalid-credential' || code === 'auth/wrong-password' ||
+                code === 'auth/user-not-found')
+                userMsg('שם משתמש או סיסמה שגויים (משתמש חדש? לחצו "הרשמה")', 'err');
+            else if (code === 'auth/operation-not-allowed')
+                userMsg('התחברות עם שם משתמש עדיין לא הופעלה ב-Firebase', 'err');
+            else
+                userMsg('ההתחברות נכשלה, נסו שוב', 'err');
+        } finally {
+            setUserBusy(false);
+        }
+    }
+
+    function setUserBusy(on) {
+        $('#loginUserBtn').disabled = on;
+        $('#registerUserBtn').disabled = on;
+    }
+
     // ================= Screens =================
     function showLogin() {
         $('#loginCard').style.display = 'block';
@@ -609,9 +729,19 @@
 
     async function enterApp() {
         $('#loginCard').style.display = 'none';
-        $('#uAvatar').src = currentUser.photoURL || '';
-        $('#uName').textContent = currentUser.displayName || currentUser.email;
-        $('#uEmail').textContent = currentUser.email || '';
+        const synthetic = isSyntheticEmail(currentUser.email);
+        const avatar = $('#uAvatar');
+        if (currentUser.photoURL) {
+            avatar.src = currentUser.photoURL;
+            avatar.style.display = '';
+        } else {
+            avatar.removeAttribute('src');
+            avatar.style.display = 'none';
+        }
+        $('#uName').textContent = currentUser.displayName ||
+            (synthetic ? currentUser.email.split('@')[0] : currentUser.email);
+        // Don't show the internal synthetic email for username accounts
+        $('#uEmail').textContent = synthetic ? 'שם משתמש' : (currentUser.email || '');
         $('#userbar').style.display = 'flex';
         $('#tabs').style.display = 'flex';
 
@@ -1003,6 +1133,8 @@
     $('#logoutBtn').addEventListener('click', logout);
     $('#submitBtn').addEventListener('click', submitGuess);
     $('#adminSaveBtn').addEventListener('click', saveStandings);
+    $('#userForm').addEventListener('submit', e => { e.preventDefault(); signInWithUsername(); });
+    $('#registerUserBtn').addEventListener('click', registerWithUsername);
     document.querySelectorAll('#tabs .tab').forEach(b =>
         b.addEventListener('click', () => switchTab(b.dataset.tab)));
 

@@ -15,10 +15,25 @@ RSR-Fitness project. No build step, no server code.
 2. **Add a Web app:** on the project overview click the **`</>`** (web) icon, give it a
    nickname, **Register app**. Firebase shows a `firebaseConfig` object — keep that page open.
 
-## 2. Turn on Google Sign-In
+## 2. Turn on sign-in methods
 
-Firebase Console → **Build → Authentication → Get started** → **Sign-in method** tab →
-click **Google** → toggle **Enable**, pick a support email → **Save**.
+Firebase Console → **Build → Authentication → Get started** → **Sign-in method** tab, then
+enable **both**:
+
+- **Google** → toggle **Enable**, pick a support email → **Save**.
+- **Email/Password** → toggle **Enable** → **Save**. (This powers the username login — each
+  username is stored as a synthetic `username@users.ligat-al.app` address, so no real email
+  is ever needed. Firebase's own uniqueness check is what rejects an already-taken username.)
+
+### Username login
+
+Players can register/sign in with just a **username + password** (no email):
+
+- Username: 3–20 chars, English letters / digits / `. _ -` (case-insensitive, must be free).
+- Password: **5+ chars** (Firebase's built-in minimum is 6, so the app appends a fixed
+  internal salt before sending it — users only ever type 5+).
+- Registration auto-accepts and signs the user in immediately; a taken username is rejected
+  with "שם המשתמש כבר תפוס".
 
 ## 3. Create the Firestore database
 
