@@ -383,6 +383,7 @@
         .bonus-q { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
         .bonus-q:last-child { margin-bottom: 0; }
         .bonus-q > span { font-size: 14px; font-weight: 700; }
+        .bonus-hint { font-size: 12px; color: var(--muted); font-style: italic; line-height: 1.35; margin-top: -2px; }
         .bonus-select {
             font: inherit; font-size: 15px; font-weight: 600;
             padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px;
@@ -509,18 +510,22 @@
                 <h3>🎯 ניחושי בונוס</h3>
                 <label class="bonus-q">
                     <span>אלופת בית הדין</span>
+                    <small class="bonus-hint">מי תבזבז יותר כסף על עורכי דין מאשר על חלוצים</small>
                     <select id="bonusCourt" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
                 </label>
                 <label class="bonus-q">
                     <span>הראשונה שמפטרת מאמן</span>
+                    <small class="bonus-hint">מי ידליק נרות חנוכה מהספה בסלון</small>
                     <select id="bonusCoach" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
                 </label>
                 <label class="bonus-q">
                     <span>הקבוצה שתקבל הכי הרבה פנדלים</span>
+                    <small class="bonus-hint">מי תיפול ברחבה יותר טוב מכל שחקן בהופעת יחיד בתיאטרון</small>
                     <select id="bonusPens" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
                 </label>
                 <label class="bonus-q">
                     <span>הקבוצה שתקבל הכי הרבה אדומים</span>
+                    <small class="bonus-hint">מי תסיים יותר משחקים עם עשרה שחקנים מאשר עם אחד עשר</small>
                     <select id="bonusReds" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
                 </label>
             </div>
@@ -551,6 +556,27 @@
                 <input type="number" id="adminRound" min="1" placeholder="למשל 3">
             </label>
             <ol class="table" id="adminList"></ol>
+
+            <div class="bonus" id="adminBonus" style="margin-top:16px">
+                <h3>🎯 תשובות הבונוס (בסוף העונה)</h3>
+                <label class="bonus-q">
+                    <span>אלופת בית הדין</span>
+                    <select id="adminBonusCourt" class="bonus-select"><option value="">— טרם נקבע —</option></select>
+                </label>
+                <label class="bonus-q">
+                    <span>הראשונה שפיטרה מאמן</span>
+                    <select id="adminBonusCoach" class="bonus-select"><option value="">— טרם נקבע —</option></select>
+                </label>
+                <label class="bonus-q">
+                    <span>הקבוצה שקיבלה הכי הרבה פנדלים</span>
+                    <select id="adminBonusPens" class="bonus-select"><option value="">— טרם נקבע —</option></select>
+                </label>
+                <label class="bonus-q">
+                    <span>הקבוצה שקיבלה הכי הרבה אדומים</span>
+                    <select id="adminBonusReds" class="bonus-select"><option value="">— טרם נקבע —</option></select>
+                </label>
+            </div>
+
             <button class="btn-primary" id="adminSaveBtn" style="margin-top:12px">שמירת טבלת הליגה</button>
             <p class="savehint" id="adminHint"></p>
         </section>
@@ -941,16 +967,32 @@
         '#bonusPens':  'pens',
         '#bonusReds':  'reds'
     };
+    const BONUS_KEYS = ['court', 'coach', 'pens', 'reds'];
+    const BONUS_POINTS = 5; // each correct bonus guess is worth +5 points
+    // The admin's <select>s where the real bonus answers are set at season end
+    const ADMIN_BONUS_FIELDS = {
+        court: '#adminBonusCourt', coach: '#adminBonusCoach',
+        pens:  '#adminBonusPens',  reds:  '#adminBonusReds'
+    };
+
+    function fillTeamOptions(el) {
+        TEAMS.forEach(t => {
+            const opt = document.createElement('option');
+            opt.value = t.id; opt.textContent = t.he;
+            el.appendChild(opt);
+        });
+    }
 
     function setupBonus() {
         Object.keys(BONUS_FIELDS).forEach(sel => {
             const el = $(sel), key = BONUS_FIELDS[sel];
-            TEAMS.forEach(t => {
-                const opt = document.createElement('option');
-                opt.value = t.id; opt.textContent = t.he;
-                el.appendChild(opt);
-            });
+            fillTeamOptions(el);
             el.addEventListener('change', e => { bonus[key] = e.target.value; });
+        });
+        // Admin's real-answer dropdowns (saved with the standings)
+        Object.values(ADMIN_BONUS_FIELDS).forEach(sel => {
+            const el = $(sel);
+            if (el) fillTeamOptions(el);
         });
     }
 
@@ -997,7 +1039,7 @@
     // ================= Leaderboard (real table vs. each guess) =================
     // Score per player = -Σ |guessedPosition - realPosition| over all teams.
     // Closest to 0 wins. A team the player ranked far from its real spot costs more.
-    function computeScore(guessOrder, actualOrder) {
+    function computeScore(guessOrder, actualOrder, guessBonus, bonusAnswers) {
         const realPos = {};
         actualOrder.forEach((id, i) => { realPos[id] = i; });
         let penalty = 0;
@@ -1005,7 +1047,14 @@
             if (realPos[id] === undefined) return;
             penalty += Math.abs(i - realPos[id]);
         });
-        return -penalty;
+        // Each correct bonus guess adds +5 (only counts once the admin has set that answer)
+        let bonusPts = 0;
+        if (guessBonus && bonusAnswers) {
+            BONUS_KEYS.forEach(k => {
+                if (bonusAnswers[k] && guessBonus[k] === bonusAnswers[k]) bonusPts += BONUS_POINTS;
+            });
+        }
+        return -penalty + bonusPts;
     }
 
     // ================= Everyone's guesses (revealed after the deadline) =================
@@ -1097,6 +1146,7 @@
             }
             const st = stSnap.data();
             const actualOrder = sanitizeOrder(st.order);
+            const bonusAnswers = st.bonusAnswers || {};
             const roundTxt = st.round ? 'מחזור ' + st.round : '';
             const whenTxt = st.updatedAt ? new Date(st.updatedAt).toLocaleDateString('he-IL') : '';
             status.innerHTML = 'מבוסס על הטבלה האמיתית' +
@@ -1113,7 +1163,7 @@
                     uid: p.uid || d.id,
                     name: p.name || p.email || 'שחקן',
                     photo: p.photo || '',
-                    score: computeScore(sanitizeOrder(p.order), actualOrder)
+                    score: computeScore(sanitizeOrder(p.order), actualOrder, p.bonus, bonusAnswers)
                 });
             });
 
@@ -1144,6 +1194,11 @@
             if (snap.exists() && Array.isArray(snap.data().order)) {
                 adminOrder = sanitizeOrder(snap.data().order);
                 if (snap.data().round) $('#adminRound').value = snap.data().round;
+                const ans = snap.data().bonusAnswers || {};
+                BONUS_KEYS.forEach(k => {
+                    const el = $(ADMIN_BONUS_FIELDS[k]);
+                    if (el) el.value = teamById(ans[k]) ? ans[k] : '';
+                });
             } else {
                 adminOrder = TEAMS.map(t => t.id);
             }
@@ -1158,10 +1213,16 @@
         const btn = $('#adminSaveBtn');
         btn.disabled = true;
         const round = parseInt($('#adminRound').value, 10);
+        const bonusAnswers = {};
+        BONUS_KEYS.forEach(k => {
+            const el = $(ADMIN_BONUS_FIELDS[k]);
+            bonusAnswers[k] = el ? el.value : '';
+        });
         try {
             await setDoc(doc(db, 'meta', 'standings'), {
                 order: adminOrder.slice(),
                 round: Number.isFinite(round) ? round : null,
+                bonusAnswers: bonusAnswers,
                 season: SEASON,
                 updatedAt: Date.now()
             });

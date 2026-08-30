@@ -179,6 +179,12 @@ player's score is the **negative** sum of those penalties. So a perfect table = 
 the closer to `0`, the higher the rank. Example: you put Hapoel Haifa 10th but they're
 really 2nd → that team costs 8, i.e. −8 points.
 
+**Bonus points:** each of the four bonus guesses (court champion / first to fire a
+coach / most penalties / most red cards) is worth **+5 points** if it matches the real
+answer. The admin fills in the real bonus answers on the **עדכון טבלה** tab at the end of
+the season and saves; they're stored on `meta/standings.bonusAnswers` and added to each
+player's score. A bonus the admin hasn't set yet counts for no one.
+
 The real table is stored in Firestore as `meta/standings`:
 
 ```json
