@@ -2,11 +2,11 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Submission deadline: 30 Aug 2026, 23:59:59 Israel time (IDT = UTC+3),
-    // which is 20:59:59 UTC. Keep this in sync with DEADLINE in index.html.
+    // Submission deadline: 30 Aug 2026, 16:00 Israel time (IDT = UTC+3),
+    // which is 13:00 UTC. Keep this in sync with DEADLINE in index.html.
     function afterDeadline() {
       return request.time >
-             timestamp.date(2026, 8, 30) + duration.time(20, 59, 59, 0);
+             timestamp.date(2026, 8, 30) + duration.time(13, 0, 0, 0);
     }
 
     // A player can always read & write their OWN guess. Reading ANYONE ELSE's

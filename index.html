@@ -460,7 +460,7 @@
                 <div class="cd-seg"><b id="cdM">--</b><span>דקות</span></div>
                 <div class="cd-seg"><b id="cdS">--</b><span>שניות</span></div>
             </div>
-            <div class="cd-deadline">מועד אחרון: 30.08.2026 · 23:59 (שעון ישראל)</div>
+            <div class="cd-deadline">מועד אחרון: 30.08.2026 · 16:00 (שעון ישראל)</div>
         </div>
 
         <!-- Login -->
@@ -672,12 +672,9 @@
     const usernameToEmail = u => u.trim().toLowerCase() + USER_EMAIL_DOMAIN;
     const isSyntheticEmail = e => typeof e === 'string' && e.endsWith(USER_EMAIL_DOMAIN);
 
-    // Submission deadline — 30 Aug 2026, 23:59:59 Israel time (IDT = UTC+3).
+    // Submission deadline — 30 Aug 2026, 16:00 Israel time (IDT = UTC+3).
     // After this moment guesses lock and can no longer be saved/changed.
-    // >>> TEMP TEST MODE: deadline moved to the past to simulate "season started".
-    //     Restore the line below to the real date when done testing.
-    // const DEADLINE = new Date('2026-08-30T23:59:59+03:00').getTime();
-    const DEADLINE = new Date('2020-01-01T00:00:00+03:00').getTime();
+    const DEADLINE = new Date('2026-08-30T16:00:00+03:00').getTime();
 
     // How many teams sit in each colored zone (edit to taste)
     const ZONES = { champ: 1, euro: 3, relegate: 2 };
