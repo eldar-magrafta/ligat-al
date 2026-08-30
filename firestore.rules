@@ -9,12 +9,16 @@ service cloud.firestore {
              timestamp.date(2026, 8, 30) + duration.time(11, 45, 0, 0);
     }
 
-    // A player can always read & write their OWN guess. Reading ANYONE ELSE's
-    // guess (a single get, or listing the whole collection) is blocked until the
-    // deadline passes — so nobody can peek at others' tables, even via the
-    // console or the raw API, while submissions are still open.
+    // A player may WRITE their OWN guess only until the deadline — after it
+    // passes, submissions are frozen (enforced here, not just in the UI, so it
+    // can't be bypassed via the console or raw API).
+    // Reading ANYONE ELSE's guess (a single get, or listing the whole
+    // collection) is blocked until the deadline passes — so nobody can peek at
+    // others' tables while submissions are still open.
     match /predictions/{uid} {
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null
+                   && request.auth.uid == uid
+                   && !afterDeadline();
       allow read:  if request.auth != null
                    && (request.auth.uid == uid || afterDeadline());
     }

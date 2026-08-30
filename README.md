@@ -40,28 +40,28 @@ Players can register/sign in with just a **username + password** (no email):
 Firebase Console → **Build → Firestore Database → Create database** → start in
 **production mode** (or test mode) → pick a location → **Enable**.
 
-Set the rules below (also saved in [`firestore.rules`](firestore.rules)). A player can
-always read & write **their own** guess, but reading **anyone else's** — a single doc or
-the whole collection — is blocked at the database level **until the deadline passes**
-(30 Aug 2026 23:59:59 Israel time). So no one can peek at others' tables early, even via
-the browser console or the raw API. The real league table lives in `meta/standings`,
-readable by all signed-in players and writable only by the admin account.
-**Rules** tab → paste this → **Publish**:
+Set the rules below (also saved in [`firestore.rules`](firestore.rules)). A player may
+read & write **their own** guess **only until the deadline** (writes freeze after it), and
+reading **anyone else's** — a single doc or the whole collection — is blocked at the
+database level **until the deadline passes**. So no one can peek at others' tables early,
+and no one can edit their guess late, even via the browser console or the raw API. The
+real league table lives in `meta/standings`, readable by all signed-in players and writable
+only by the admin account. **Rules** tab → paste this → **Publish**:
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Submission deadline: 30 Aug 2026, 23:59:59 Israel time (UTC+3) = 20:59:59 UTC.
+    // Submission deadline: 30 Aug 2026, 14:45 Israel time (UTC+3) = 11:45 UTC.
     // Keep in sync with DEADLINE in index.html.
     function afterDeadline() {
       return request.time >
-             timestamp.date(2026, 8, 30) + duration.time(20, 59, 59, 0);
+             timestamp.date(2026, 8, 30) + duration.time(11, 45, 0, 0);
     }
 
     match /predictions/{uid} {
-      allow write: if request.auth != null && request.auth.uid == uid;
+      allow write: if request.auth != null && request.auth.uid == uid && !afterDeadline();
       allow read:  if request.auth != null
                    && (request.auth.uid == uid || afterDeadline());
     }
