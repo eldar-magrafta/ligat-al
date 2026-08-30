@@ -1177,7 +1177,7 @@
             const actualOrder = sanitizeOrder(st.order);
             const bonusAnswers = st.bonusAnswers || {};
             const roundTxt = st.round ? 'מחזור ' + st.round : '';
-            const whenTxt = st.updatedAt ? new Date(st.updatedAt).toLocaleDateString('he-IL') : '';
+            const whenTxt = st.updatedAt ? new Date(st.updatedAt).toLocaleString('he-IL', { dateStyle: 'short', timeStyle: 'short' }) : '';
             status.innerHTML = 'מבוסס על הטבלה האמיתית' +
                 (roundTxt ? ' · ' + roundTxt : '') +
                 (whenTxt ? ' · עודכן ' + whenTxt : '');
