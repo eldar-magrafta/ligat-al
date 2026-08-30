@@ -73,6 +73,35 @@
             margin: 0; color: var(--muted); font-weight: 500; font-size: 15px;
         }
 
+        /* ---------- Countdown ---------- */
+        .countdown {
+            background: linear-gradient(160deg, var(--pitch-light), var(--pitch-dark));
+            color: #fff;
+            border-radius: 20px;
+            padding: 16px 14px 14px;
+            margin: 14px 0 4px;
+            text-align: center;
+            box-shadow: var(--shadow);
+        }
+        .cd-title { font-size: 14px; font-weight: 600; opacity: .92; margin-bottom: 10px; }
+        .cd-clock { display: flex; justify-content: center; gap: 8px; }
+        .cd-seg {
+            background: rgba(255,255,255,.14);
+            border-radius: 12px;
+            padding: 8px 4px 6px;
+            min-width: 62px;
+            backdrop-filter: blur(2px);
+        }
+        .cd-seg b {
+            display: block; font-size: 26px; font-weight: 800; line-height: 1;
+            font-variant-numeric: tabular-nums;
+        }
+        .cd-seg span { font-size: 11px; opacity: .85; }
+        .cd-deadline { font-size: 12px; opacity: .8; margin-top: 10px; }
+        /* closed state */
+        .countdown.closed { background: linear-gradient(160deg, #b23b3b, #8a2626); }
+        .cd-clock.done { font-size: 20px; font-weight: 800; padding: 6px 0; }
+
         /* ---------- User bar ---------- */
         .userbar {
             display: none;
@@ -272,6 +301,18 @@
             <p>איך תיראה הטבלה בסוף העונה?</p>
         </header>
 
+        <!-- Countdown to deadline -->
+        <div class="countdown" id="countdown">
+            <div class="cd-title" id="cdTitle">הזמן שנותר להגשת הניחוש</div>
+            <div class="cd-clock" id="cdClock">
+                <div class="cd-seg"><b id="cdD">--</b><span>ימים</span></div>
+                <div class="cd-seg"><b id="cdH">--</b><span>שעות</span></div>
+                <div class="cd-seg"><b id="cdM">--</b><span>דקות</span></div>
+                <div class="cd-seg"><b id="cdS">--</b><span>שניות</span></div>
+            </div>
+            <div class="cd-deadline">מועד אחרון: 30.08.2026 · 23:59 (שעון ישראל)</div>
+        </div>
+
         <!-- Login -->
         <section class="login" id="loginCard" style="display:none">
             <h2>התחברות</h2>
@@ -346,6 +387,10 @@
 
     const SEASON = '2026-27';
 
+    // Submission deadline — 30 Aug 2026, 23:59:59 Israel time (IDT = UTC+3).
+    // After this moment guesses lock and can no longer be saved/changed.
+    const DEADLINE = new Date('2026-08-30T23:59:59+03:00').getTime();
+
     // How many teams sit in each colored zone (edit to taste)
     const ZONES = { champ: 1, euro: 3, relegate: 2 };
 
@@ -377,6 +422,7 @@
     let auth = null, db = null;
     let currentUser = null;           // firebase user
     let order = TEAMS.map(t => t.id); // current ordering of team ids
+    let locked = false;               // true once the deadline passes
 
     // ================= Firebase init =================
     function configured() {
@@ -507,6 +553,7 @@
     }
 
     function move(fromIdx, toIdx) {
+        if (locked) return;
         if (toIdx < 0 || toIdx >= order.length || fromIdx === toIdx) return;
         const [id] = order.splice(fromIdx, 1);
         order.splice(toIdx, 0, id);
@@ -529,6 +576,7 @@
         let dragEl = null, placeholder = null, offsetY = 0;
 
         list.addEventListener('pointerdown', e => {
+            if (locked) return;
             const handle = e.target.closest('.handle');
             if (!handle) return;
             const li = e.target.closest('li.row');
@@ -592,6 +640,7 @@
     // ================= Firestore save =================
     async function submitGuess() {
         if (!currentUser || !db) return;
+        if (locked) { toast('ההגשה נסגרה — המועד האחרון עבר', true); return; }
         setSubmitting(true);
         try {
             await setDoc(doc(db, 'predictions', currentUser.uid), {
@@ -629,11 +678,41 @@
     }
     function setHint(t) { $('#saveHint').textContent = t || ''; }
 
+    // ================= Countdown + deadline lock =================
+    const pad = n => String(n).padStart(2, '0');
+
+    function applyLock() {
+        locked = true;
+        $('#countdown').classList.add('closed');
+        $('#cdTitle').textContent = 'ההגשה נסגרה';
+        $('#cdClock').classList.add('done');
+        $('#cdClock').innerHTML = '🔒 המועד האחרון עבר';
+        const btn = $('#submitBtn');
+        btn.disabled = true;
+        $('#submitLabel').textContent = 'ההגשה נסגרה 🔒';
+        setHint('לא ניתן עוד לשנות את הניחוש');
+    }
+
+    function tickCountdown() {
+        let diff = DEADLINE - Date.now();
+        if (diff <= 0) { if (!locked) applyLock(); return; }
+        const d = Math.floor(diff / 86400000); diff %= 86400000;
+        const h = Math.floor(diff / 3600000); diff %= 3600000;
+        const m = Math.floor(diff / 60000); diff %= 60000;
+        const s = Math.floor(diff / 1000);
+        $('#cdD').textContent = d;
+        $('#cdH').textContent = pad(h);
+        $('#cdM').textContent = pad(m);
+        $('#cdS').textContent = pad(s);
+    }
+
     // ================= Wire up + boot =================
     $('#googleBtn').addEventListener('click', signIn);
     $('#logoutBtn').addEventListener('click', logout);
     $('#submitBtn').addEventListener('click', submitGuess);
 
+    tickCountdown();
+    setInterval(tickCountdown, 1000);
     initFirebase();
     </script>
 </body>
