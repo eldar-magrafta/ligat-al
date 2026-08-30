@@ -568,7 +568,9 @@
 
     // Submission deadline — 30 Aug 2026, 23:59:59 Israel time (IDT = UTC+3).
     // After this moment guesses lock and can no longer be saved/changed.
-    const DEADLINE = new Date('2026-08-30T23:59:59+03:00').getTime();
+    // >>> TEMP PREVIEW: deadline set to the PAST to preview the locked/reveal state.
+    //     RESTORE to: new Date('2026-08-30T23:59:59+03:00').getTime();
+    const DEADLINE = new Date('2020-01-01T00:00:00+03:00').getTime();
 
     // How many teams sit in each colored zone (edit to taste)
     const ZONES = { champ: 1, euro: 3, relegate: 2 };
