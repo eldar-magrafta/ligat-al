@@ -26,5 +26,15 @@ service cloud.firestore {
       allow write: if request.auth != null
                    && request.auth.token.email == 'eldar71191@gmail.com';
     }
+
+    // Leaderboard snapshots (one per admin table update) powering the
+    // rank-over-time chart. Anyone signed in reads; only the admin writes.
+    // These are only ever created after the season starts (post-deadline),
+    // and hold scores only — never the raw predictions.
+    match /history/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.email == 'eldar71191@gmail.com';
+    }
   }
 }

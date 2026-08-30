@@ -71,6 +71,13 @@ service cloud.firestore {
       allow write: if request.auth != null
                    && request.auth.token.email == 'eldar71191@gmail.com';
     }
+
+    // Leaderboard snapshots (one per admin update) for the rank-over-time chart.
+    match /history/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.email == 'eldar71191@gmail.com';
+    }
   }
 }
 ```
@@ -161,7 +168,10 @@ The app has three tabs (the third only appears for the admin):
 - **הניחוש שלי** — the drag-and-drop guess editor. Loads your last saved submission and
   lets you re-order and re-save until the deadline, after which it locks.
 - **טבלת המובילים** (leaderboard) — ranks all signed-in players against the real league
-  table. Visible to everyone signed in.
+  table. Visible to everyone signed in. Below the ranking it draws a **rank-over-time line
+  graph**: one colored line per player, a dot for every admin table update, so you can watch
+  players overtake each other through the season. Each admin save writes a scored snapshot to
+  a `history/{round}` doc (scores only), which powers the graph.
 - **עדכון טבלה** (admin only) — where the admin arranges the **real** current league
   standings and saves them; everyone's leaderboard score recomputes from that.
 

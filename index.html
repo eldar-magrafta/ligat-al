@@ -234,6 +234,18 @@
         .lb-formula { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; margin-top: 16px; }
         .medal { font-size: 18px; }
 
+        /* ---------- Rank-over-time line chart ---------- */
+        .rank-chart-wrap { margin-top: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+        .rank-chart-title { margin: 0 0 4px; font-size: 15px; }
+        .rank-chart-sub { margin: 0 0 12px; font-size: 12px; color: var(--muted); }
+        .rank-chart-scroll { overflow-x: auto; direction: ltr; -webkit-overflow-scrolling: touch; }
+        .rank-chart-scroll svg { display: block; }
+        .rank-chart svg text { font-family: inherit; }
+        .rank-legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-top: 12px; direction: rtl; }
+        .rank-legend .chip { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; color: var(--ink); }
+        .rank-legend .chip.me { font-weight: 800; }
+        .rank-legend .dot { width: 12px; height: 3px; border-radius: 2px; }
+
         /* ---------- Everyone's guesses (accordion) ---------- */
         .all-locked {
             text-align: center; color: var(--muted); font-size: 15px; line-height: 1.6;
@@ -546,6 +558,14 @@
         <section id="leaderView" style="display:none">
             <div class="lb-status" id="lbStatus"></div>
             <div class="lb-list" id="leaderList"></div>
+
+            <div class="rank-chart-wrap" id="rankChartWrap" style="display:none">
+                <h3 class="rank-chart-title">📈 מגמת הדירוג לאורך העונה</h3>
+                <p class="rank-chart-sub">כל נקודה = עדכון טבלה של המנהל. קו לכל שחקן — ככל שהקו למעלה, המיקום טוב יותר.</p>
+                <div class="rank-chart-scroll"><div class="rank-chart" id="rankChart"></div></div>
+                <div class="rank-legend" id="rankLegend"></div>
+            </div>
+
             <p class="lb-formula">
                 ניקוד: לכל קבוצה מורידים נקודות לפי המרחק בין המקום שניחשתם למקום האמיתי בליגה.
                 הכי קרוב ל־0 = מוביל.
@@ -1162,9 +1182,30 @@
         }
     }
 
+    // Fetch every player's prediction and score it against the given real table.
+    // Returns rows sorted best-first (closest to 0). Shared by the leaderboard
+    // and by the history snapshot the admin writes on every save.
+    async function scoreAllPlayers(actualOrder, bonusAnswers) {
+        const snaps = await getDocs(collection(db, 'predictions'));
+        const rows = [];
+        snaps.forEach(d => {
+            const p = d.data();
+            if (!Array.isArray(p.order)) return;
+            rows.push({
+                uid: p.uid || d.id,
+                name: p.name || p.email || 'שחקן',
+                photo: p.photo || '',
+                score: computeScore(sanitizeOrder(p.order), actualOrder, p.bonus, bonusAnswers || {})
+            });
+        });
+        rows.sort((a, b) => b.score - a.score);
+        return rows;
+    }
+
     async function loadLeaderboard() {
         const status = $('#lbStatus'), list = $('#leaderList');
         list.innerHTML = '<div class="lb-loading">טוען…</div>';
+        $('#rankChartWrap').style.display = 'none';
         try {
             // 1) The real, admin-maintained league table
             const stSnap = await getDoc(doc(db, 'meta', 'standings'));
@@ -1182,26 +1223,13 @@
                 (roundTxt ? ' · ' + roundTxt : '') +
                 (whenTxt ? ' · עודכן ' + whenTxt : '');
 
-            // 2) All players' guesses
-            const snaps = await getDocs(collection(db, 'predictions'));
-            const rows = [];
-            snaps.forEach(d => {
-                const p = d.data();
-                if (!Array.isArray(p.order)) return;
-                rows.push({
-                    uid: p.uid || d.id,
-                    name: p.name || p.email || 'שחקן',
-                    photo: p.photo || '',
-                    score: computeScore(sanitizeOrder(p.order), actualOrder, p.bonus, bonusAnswers)
-                });
-            });
-
+            // 2) All players' guesses, scored
+            const rows = await scoreAllPlayers(actualOrder, bonusAnswers);
             if (!rows.length) {
                 list.innerHTML = '<div class="lb-empty">עדיין אין ניחושים שמורים.</div>';
                 return;
             }
 
-            rows.sort((a, b) => b.score - a.score); // closest to 0 first
             const medals = ['🥇', '🥈', '🥉'];
             list.innerHTML = rows.map((r, i) => `
                 <div class="lb-row${r.uid === currentUser.uid ? ' me' : ''}${i === 0 ? ' top1' : ''}">
@@ -1210,9 +1238,109 @@
                     <div class="lb-name">${r.name}${r.uid === currentUser.uid ? ' <small>אתה</small>' : ''}</div>
                     <div class="lb-pts">${r.score}<span>נק'</span></div>
                 </div>`).join('');
+
+            loadRankChart(); // rank-over-time graph (fire-and-forget)
         } catch (err) {
             status.innerHTML = '';
             list.innerHTML = '<div class="lb-empty">טעינת הטבלה נכשלה. נסו לרענן.</div>';
+        }
+    }
+
+    // ================= Rank-over-time line chart =================
+    // Distinct colors, one per player (max 10 players expected).
+    const CHART_COLORS = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4',
+                          '#00b0b0', '#e6b800', '#f032e6', '#3d8f4b', '#808000'];
+
+    // Turn a list of {uid, score} (already sorted best-first) into uid->rank,
+    // with ties sharing the same rank (dense-ish: standard competition ranking).
+    function ranksFromScores(scores) {
+        const sorted = scores.slice().sort((a, b) => b.score - a.score);
+        const rank = {};
+        sorted.forEach((s, i) => {
+            rank[s.uid] = (i > 0 && s.score === sorted[i - 1].score)
+                ? rank[sorted[i - 1].uid] : i + 1;
+        });
+        return rank;
+    }
+
+    async function loadRankChart() {
+        const wrap = $('#rankChartWrap'), chart = $('#rankChart'), legend = $('#rankLegend');
+        try {
+            const snaps = await getDocs(collection(db, 'history'));
+            const hist = [];
+            snaps.forEach(d => {
+                const h = d.data();
+                if (Array.isArray(h.scores) && h.scores.length) hist.push(h);
+            });
+            if (!hist.length) { wrap.style.display = 'none'; return; }
+
+            // Chronological order (by round, then time)
+            hist.sort((a, b) => (a.round ?? 0) - (b.round ?? 0) || (a.updatedAt || 0) - (b.updatedAt || 0));
+
+            // Every player who appears anywhere, and their latest display name
+            const names = {};
+            hist.forEach(h => h.scores.forEach(s => { names[s.uid] = s.name || names[s.uid] || 'שחקן'; }));
+            const uids = Object.keys(names);
+            const N = uids.length;
+            const C = hist.length;
+            const colorOf = {}; uids.forEach((u, i) => { colorOf[u] = CHART_COLORS[i % CHART_COLORS.length]; });
+
+            // Per snapshot: uid -> rank
+            const rankCols = hist.map(h => ranksFromScores(h.scores));
+
+            // ---- geometry ----
+            const padL = 26, padR = 14, padT = 14, padB = 26;
+            const colGap = 74;
+            const plotW = Math.max(1, C - 1) * colGap + (C === 1 ? colGap : 0);
+            const rowH = 30;
+            const plotH = Math.max(1, N - 1) * rowH;
+            const W = padL + plotW + padR;
+            const H = padT + plotH + padB;
+            const x = i => padL + (C === 1 ? plotW / 2 : (i / (C - 1)) * plotW);
+            const y = r => padT + (N === 1 ? plotH / 2 : ((r - 1) / (N - 1)) * plotH);
+
+            let svg = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img">`;
+
+            // horizontal gridlines + rank labels (1 = top)
+            for (let r = 1; r <= N; r++) {
+                svg += `<line x1="${padL}" y1="${y(r)}" x2="${padL + plotW}" y2="${y(r)}" stroke="#ffffff14"/>`;
+                svg += `<text x="${padL - 6}" y="${y(r) + 4}" text-anchor="end" font-size="11" fill="#8aa39a">${r}</text>`;
+            }
+            // x-axis labels (round numbers)
+            hist.forEach((h, i) => {
+                const lbl = (h.round != null) ? ('מ' + h.round) : (i + 1);
+                svg += `<text x="${x(i)}" y="${H - 8}" text-anchor="middle" font-size="11" fill="#8aa39a">${lbl}</text>`;
+            });
+
+            // one polyline + dots per player
+            uids.forEach(u => {
+                const pts = [];
+                rankCols.forEach((col, i) => { if (col[u] != null) pts.push([x(i), y(col[u]), i]); });
+                if (!pts.length) return;
+                const me = u === currentUser.uid;
+                const col = colorOf[u];
+                const sw = me ? 3.5 : 2;
+                if (pts.length > 1) {
+                    svg += `<polyline fill="none" stroke="${col}" stroke-width="${sw}" stroke-linejoin="round" stroke-linecap="round"${me ? '' : ' opacity="0.85"'} points="${pts.map(p => p[0] + ',' + p[1]).join(' ')}"/>`;
+                }
+                pts.forEach(p => {
+                    svg += `<circle cx="${p[0]}" cy="${p[1]}" r="${me ? 4.5 : 3.5}" fill="${col}" stroke="#0e1512" stroke-width="1.5"/>`;
+                });
+            });
+            svg += `</svg>`;
+            chart.innerHTML = svg;
+
+            // legend (players in current standing order = last snapshot's ranks)
+            const lastRank = rankCols[C - 1] || {};
+            const ordered = uids.slice().sort((a, b) => (lastRank[a] ?? 99) - (lastRank[b] ?? 99));
+            legend.innerHTML = ordered.map(u => `
+                <span class="chip${u === currentUser.uid ? ' me' : ''}">
+                    <span class="dot" style="background:${colorOf[u]}"></span>${names[u]}${u === currentUser.uid ? ' (אתה)' : ''}
+                </span>`).join('');
+
+            wrap.style.display = 'block';
+        } catch (err) {
+            wrap.style.display = 'none';
         }
     }
 
@@ -1247,14 +1375,30 @@
             const el = $(ADMIN_BONUS_FIELDS[k]);
             bonusAnswers[k] = el ? el.value : '';
         });
+        const roundNum = Number.isFinite(round) ? round : null;
+        const now = Date.now();
         try {
             await setDoc(doc(db, 'meta', 'standings'), {
                 order: adminOrder.slice(),
-                round: Number.isFinite(round) ? round : null,
+                round: roundNum,
                 bonusAnswers: bonusAnswers,
                 season: SEASON,
-                updatedAt: Date.now()
+                updatedAt: now
             });
+
+            // Snapshot the leaderboard now, so the rank-over-time chart gains a point.
+            // Keyed by round (re-saving the same round updates it, not duplicates).
+            try {
+                const rows = await scoreAllPlayers(adminOrder, bonusAnswers);
+                const histId = (roundNum != null ? 'r' + roundNum : 't' + now);
+                await setDoc(doc(db, 'history', histId), {
+                    round: roundNum,
+                    season: SEASON,
+                    updatedAt: now,
+                    scores: rows.map(r => ({ uid: r.uid, name: r.name, score: r.score }))
+                });
+            } catch (_) { /* history is best-effort; the standings already saved */ }
+
             $('#adminHint').textContent = 'הטבלה נשמרה · ' + new Date().toLocaleString('he-IL');
             toast('טבלת הליגה עודכנה ✅');
         } catch (err) {
