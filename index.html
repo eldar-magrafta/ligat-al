@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <meta name="theme-color" content="#0b6e3b">
+    <title>ניחוש טבלת ליגת העל</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Assistant:wght@400;500;600;700;800&family=Rubik:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <style>
+        :root {
+            --pitch: #0b6e3b;
+            --pitch-dark: #084d2a;
+            --pitch-light: #128a4c;
+            --gold: #f4c430;
+            --ink: #12211a;
+            --muted: #5c6f66;
+            --paper: #f4f7f4;
+            --card: #ffffff;
+            --line: #e2e9e4;
+            --danger: #d64545;
+            --champ: #1f9d57;
+            --euro: #3a86ff;
+            --relegate: #d64545;
+            --shadow: 0 6px 22px rgba(8, 60, 34, .12);
+        }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+        html, body { margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Assistant', 'Rubik', system-ui, sans-serif;
+            background:
+                radial-gradient(1200px 500px at 50% -10%, rgba(18,138,76,.18), transparent 60%),
+                var(--paper);
+            color: var(--ink);
+            min-height: 100vh;
+            min-height: 100dvh;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .wrap {
+            max-width: 640px;
+            margin: 0 auto;
+            padding: 20px 16px calc(120px + env(safe-area-inset-bottom, 0px));
+        }
+
+        /* ---------- Header ---------- */
+        header.app {
+            text-align: center;
+            padding: 22px 0 10px;
+        }
+        .crest {
+            width: 64px; height: 64px; margin: 0 auto 8px;
+            display: grid; place-items: center;
+            border-radius: 20px;
+            background: linear-gradient(160deg, var(--pitch-light), var(--pitch-dark));
+            box-shadow: var(--shadow);
+            color: #fff;
+        }
+        .crest svg { width: 36px; height: 36px; }
+        header.app h1 {
+            font-size: clamp(22px, 6vw, 30px);
+            font-weight: 800;
+            margin: 6px 0 2px;
+            letter-spacing: -.02em;
+        }
+        header.app p {
+            margin: 0; color: var(--muted); font-weight: 500; font-size: 15px;
+        }
+
+        /* ---------- User bar ---------- */
+        .userbar {
+            display: none;
+            align-items: center;
+            gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 8px 12px;
+            margin: 14px 0;
+            box-shadow: var(--shadow);
+        }
+        .userbar img { width: 38px; height: 38px; border-radius: 50%; object-fit: cover; }
+        .userbar .who { flex: 1; min-width: 0; }
+        .userbar .who b { display: block; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .userbar .who span { display: block; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .btn-ghost {
+            border: 1px solid var(--line); background: #fff; color: var(--muted);
+            border-radius: 12px; padding: 8px 12px; font: inherit; font-weight: 600;
+            font-size: 13px; cursor: pointer;
+        }
+        .btn-ghost:active { transform: scale(.97); }
+
+        /* ---------- Login card ---------- */
+        .login {
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 22px;
+            padding: 28px 22px;
+            text-align: center;
+            box-shadow: var(--shadow);
+            margin-top: 22px;
+        }
+        .login h2 { margin: 0 0 6px; font-size: 20px; font-weight: 800; }
+        .login p { margin: 0 0 20px; color: var(--muted); font-size: 15px; line-height: 1.5; }
+        .gbtn {
+            display: inline-flex; align-items: center; gap: 12px;
+            background: #fff; color: #3c4043;
+            border: 1px solid #dadce0; border-radius: 999px;
+            padding: 12px 22px; font: inherit; font-weight: 600; font-size: 16px;
+            cursor: pointer; box-shadow: 0 1px 3px rgba(0,0,0,.08);
+        }
+        .gbtn:hover { background: #f8faff; box-shadow: 0 1px 5px rgba(0,0,0,.12); }
+        .gbtn:active { transform: translateY(1px); }
+        .gbtn svg { width: 20px; height: 20px; }
+        .config-warn {
+            margin-top: 16px; font-size: 13px; color: var(--danger);
+            background: #fdecec; border: 1px solid #f6cccc; border-radius: 12px;
+            padding: 10px 12px; text-align: right; line-height: 1.5;
+            display: none;
+        }
+        .config-warn code { background: #fff; padding: 1px 5px; border-radius: 5px; direction: ltr; display: inline-block; }
+
+        /* ---------- Instruction ---------- */
+        .howto {
+            display: none;
+            background: linear-gradient(160deg, #fff, #f2f9f4);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 14px 16px;
+            margin: 4px 0 16px;
+            font-size: 14px; color: var(--muted); line-height: 1.5;
+        }
+        .howto b { color: var(--ink); }
+
+        /* ---------- Table / list ---------- */
+        #board { display: none; }
+
+        ol.table {
+            list-style: none;
+            margin: 0; padding: 0;
+            display: flex; flex-direction: column; gap: 8px;
+        }
+
+        li.row {
+            display: flex; align-items: center; gap: 10px;
+            background: var(--card);
+            border: 1px solid var(--line);
+            border-radius: 16px;
+            padding: 8px 10px 8px 6px;
+            box-shadow: 0 2px 8px rgba(8,60,34,.05);
+            touch-action: pan-y;
+            transition: box-shadow .15s, transform .06s, border-color .15s;
+            user-select: none;
+            position: relative; overflow: hidden;
+        }
+        li.row.dragging {
+            box-shadow: 0 14px 34px rgba(8,60,34,.24);
+            border-color: var(--pitch-light);
+            opacity: .96;
+            z-index: 5;
+        }
+        li.row.placeholder {
+            background: repeating-linear-gradient(45deg, #eef5ef, #eef5ef 8px, #e6efe8 8px, #e6efe8 16px);
+            border-style: dashed;
+        }
+        li.row.placeholder > * { visibility: hidden; }
+
+        /* rank number */
+        .rank {
+            flex: 0 0 32px;
+            font-weight: 800; font-size: 17px;
+            text-align: center;
+            color: var(--pitch-dark);
+            font-variant-numeric: tabular-nums;
+        }
+        /* zone strip on the far edge */
+        li.row::before {
+            content: ""; position: absolute; inset-inline-start: 0; top: 0; bottom: 0;
+            width: 4px; background: transparent;
+        }
+        li.row[data-zone="champ"]::before { background: var(--champ); }
+        li.row[data-zone="euro"]::before { background: var(--euro); }
+        li.row[data-zone="relegate"]::before { background: var(--relegate); }
+
+        .logo {
+            flex: 0 0 40px; width: 40px; height: 40px;
+            border-radius: 50%;
+            display: grid; place-items: center;
+            font-weight: 800; font-size: 14px; color: #fff;
+            overflow: hidden;
+            box-shadow: inset 0 0 0 2px rgba(255,255,255,.35);
+        }
+        .logo img { width: 100%; height: 100%; object-fit: contain; background: #fff; }
+
+        .name { flex: 1; min-width: 0; }
+        .name b { display: block; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .name span { display: block; font-size: 11px; color: var(--muted); direction: ltr; text-align: right; }
+
+        .arrows { display: flex; flex-direction: column; gap: 2px; }
+        .arrows button {
+            border: none; background: #eef3ef; color: var(--pitch-dark);
+            width: 30px; height: 20px; border-radius: 7px;
+            display: grid; place-items: center; cursor: pointer; padding: 0;
+        }
+        .arrows button:active { background: #dbe8df; }
+        .arrows button:disabled { opacity: .3; cursor: default; }
+        .arrows svg { width: 14px; height: 14px; }
+
+        .handle {
+            flex: 0 0 30px; height: 40px;
+            display: grid; place-items: center;
+            color: #b6c3ba; cursor: grab; touch-action: none;
+        }
+        .handle:active { cursor: grabbing; }
+        .handle svg { width: 20px; height: 20px; }
+
+        /* ---------- Legend ---------- */
+        .legend {
+            display: flex; flex-wrap: wrap; gap: 12px; justify-content: center;
+            margin: 14px 0 4px; font-size: 12px; color: var(--muted); font-weight: 600;
+        }
+        .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-inline-end: 5px; vertical-align: -1px; }
+
+        /* ---------- Submit bar ---------- */
+        .submitbar {
+            position: fixed; inset-inline: 0; bottom: 0;
+            background: linear-gradient(0deg, var(--paper) 62%, rgba(244,247,244,0));
+            padding: 12px 16px calc(14px + env(safe-area-inset-bottom, 0px));
+            display: none;
+        }
+        .submitbar .inner { max-width: 640px; margin: 0 auto; }
+        .btn-primary {
+            width: 100%; border: none; cursor: pointer;
+            background: linear-gradient(160deg, var(--pitch-light), var(--pitch-dark));
+            color: #fff; font: inherit; font-weight: 800; font-size: 17px;
+            padding: 15px; border-radius: 16px;
+            box-shadow: var(--shadow);
+            display: flex; align-items: center; justify-content: center; gap: 10px;
+        }
+        .btn-primary:active { transform: translateY(1px); }
+        .btn-primary:disabled { opacity: .6; cursor: default; }
+        .savehint { text-align: center; font-size: 12px; color: var(--muted); margin: 8px 0 0; min-height: 16px; }
+
+        /* ---------- Toast ---------- */
+        .toast {
+            position: fixed; left: 50%; bottom: 96px; transform: translateX(-50%) translateY(20px);
+            background: var(--ink); color: #fff; padding: 12px 18px; border-radius: 14px;
+            font-weight: 600; font-size: 14px; box-shadow: var(--shadow);
+            opacity: 0; pointer-events: none; transition: opacity .25s, transform .25s;
+            z-index: 50; max-width: 90vw; text-align: center;
+        }
+        .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+        .toast.err { background: var(--danger); }
+
+        .spin { width: 18px; height: 18px; border: 2.5px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: sp .7s linear infinite; }
+        @keyframes sp { to { transform: rotate(360deg); } }
+    </style>
+</head>
+<body>
+    <div class="wrap">
+        <header class="app">
+            <div class="crest">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 2 3 6v6c0 5 3.8 8.7 9 10 5.2-1.3 9-5 9-10V6l-9-4zm0 3.2 5 2.2v4.6c0 3.2-2.2 5.9-5 7-2.8-1.1-5-3.8-5-7V7.4l5-2.2z"/><path d="M11 13.6 8.7 11.3l-1.4 1.4L11 16.4l6-6-1.4-1.4z"/></svg>
+            </div>
+            <h1>ניחוש טבלת ליגת העל</h1>
+            <p>איך תיראה הטבלה בסוף העונה?</p>
+        </header>
+
+        <!-- Login -->
+        <section class="login" id="loginCard" style="display:none">
+            <h2>התחברות</h2>
+            <p>התחברו עם חשבון Google כדי לשמור את הניחוש שלכם.</p>
+            <button class="gbtn" id="googleBtn">
+                <svg viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+                התחברות עם Google
+            </button>
+            <div class="config-warn" id="configWarn"></div>
+        </section>
+
+        <!-- Logged-in user -->
+        <div class="userbar" id="userbar">
+            <img id="uAvatar" alt="" referrerpolicy="no-referrer">
+            <div class="who">
+                <b id="uName"></b>
+                <span id="uEmail"></span>
+            </div>
+            <button class="btn-ghost" id="logoutBtn">התנתקות</button>
+        </div>
+
+        <!-- Board -->
+        <section id="board">
+            <div class="howto" id="howto">
+                גררו את הקבוצות מעלה ומטה כדי לסדר את הטבלה — <b>מקום 1 = אלופה</b>, מקום 14 = יורדת ליגה.
+                אפשר גם להשתמש בחיצים ▲▼. בסיום לחצו על "שמירת הניחוש".
+            </div>
+
+            <ol class="table" id="tableList"></ol>
+
+            <div class="legend">
+                <span><i style="background:var(--champ)"></i>אלופה</span>
+                <span><i style="background:var(--euro)"></i>אירופה</span>
+                <span><i style="background:var(--relegate)"></i>ירידת ליגה</span>
+            </div>
+        </section>
+    </div>
+
+    <!-- Submit -->
+    <div class="submitbar" id="submitbar">
+        <div class="inner">
+            <button class="btn-primary" id="submitBtn">
+                <span id="submitLabel">שמירת הניחוש</span>
+            </button>
+            <p class="savehint" id="saveHint"></p>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script type="module">
+    // Firebase modular SDK (same version/pattern as the RSR-Fitness project)
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-app.js';
+    import {
+        getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged,
+        signOut, setPersistence, browserLocalPersistence
+    } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
+    import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
+
+    // =====================================================================
+    //  CONFIG  — paste your Firebase web-app config here (see README.md)
+    //  Firebase Console → Project settings → Your apps → Web app → SDK config
+    // =====================================================================
+    const FIREBASE_CONFIG = {
+        apiKey:            'AIzaSyDW6grcYv5Vd59Y7asBpYoZdKib4mSLHYQ',
+        authDomain:        'ligat-al-2c96b.firebaseapp.com',
+        projectId:         'ligat-al-2c96b',
+        storageBucket:     'ligat-al-2c96b.firebasestorage.app',
+        messagingSenderId: '1015521943560',
+        appId:             '1:1015521943560:web:2b9f094308fcd8472cf1bd'
+    };
+
+    const SEASON = '2026-27';
+
+    // How many teams sit in each colored zone (edit to taste)
+    const ZONES = { champ: 1, euro: 3, relegate: 2 };
+
+    // =====================================================================
+    //  TEAMS — ליגת העל. Edit names / colors / logo freely.
+    //  logo: optional image URL. If empty, a colored badge with initials is shown.
+    // =====================================================================
+    const TEAMS = [
+        { id: 'mta',  he: 'מכבי תל אביב',      en: 'Maccabi Tel Aviv',    ab: 'מ"ת',  color: '#f6d500', fg: '#0a3d91', logo: '' },
+        { id: 'mhaifa', he: 'מכבי חיפה',        en: 'Maccabi Haifa',       ab: 'מ"ח',  color: '#0a8a3f', fg: '#ffffff', logo: '' },
+        { id: 'bs',   he: 'הפועל באר שבע',      en: 'Hapoel Be\'er Sheva', ab: 'ב"ש',  color: '#e11b22', fg: '#ffffff', logo: '' },
+        { id: 'beitar', he: 'בית"ר ירושלים',    en: 'Beitar Jerusalem',    ab: 'בית"ר', color: '#f4c20d', fg: '#111111', logo: '' },
+        { id: 'hta',  he: 'הפועל תל אביב',      en: 'Hapoel Tel Aviv',     ab: 'הת"א', color: '#c8102e', fg: '#ffffff', logo: '' },
+        { id: 'netanya', he: 'מכבי נתניה',       en: 'Maccabi Netanya',     ab: 'נתניה', color: '#ffd400', fg: '#111111', logo: '' },
+        { id: 'hjer', he: 'הפועל ירושלים',      en: 'Hapoel Jerusalem',    ab: 'ה-י',  color: '#e11b22', fg: '#111111', logo: '' },
+        { id: 'hhaifa', he: 'הפועל חיפה',        en: 'Hapoel Haifa',        ab: 'ה-ח',  color: '#e11b22', fg: '#ffffff', logo: '' },
+        { id: 'sakhnin', he: 'בני סכנין',        en: 'Bnei Sakhnin',        ab: 'סכנין', color: '#d21f2b', fg: '#ffffff', logo: '' },
+        { id: 'tveria', he: 'עירוני טבריה',      en: 'Ironi Tiberias',      ab: 'טבריה', color: '#1e64c8', fg: '#ffffff', logo: '' },
+        { id: 'ashdod', he: 'מ.ס. אשדוד',        en: 'FC Ashdod',           ab: 'אשדוד', color: '#f5a623', fg: '#111111', logo: '' },
+        { id: 'kshmona', he: 'עירוני קרית שמונה', en: 'Ironi Kiryat Shmona', ab: 'ק"ש',  color: '#1e64c8', fg: '#ffffff', logo: '' },
+        { id: 'raina', he: 'מכבי בני ריינה',     en: 'Maccabi Bnei Reineh', ab: 'ריינה', color: '#0a8a3f', fg: '#ffffff', logo: '' },
+        { id: 'hpt',  he: 'הפועל פתח תקווה',     en: 'Hapoel Petah Tikva',  ab: 'פ"ת',  color: '#005baa', fg: '#ffffff', logo: '' },
+    ];
+
+    // ---------------------------------------------------------------------
+    const $ = sel => document.querySelector(sel);
+    const teamById = id => TEAMS.find(t => t.id === id);
+
+    let auth = null, db = null;
+    let currentUser = null;           // firebase user
+    let order = TEAMS.map(t => t.id); // current ordering of team ids
+
+    // ================= Firebase init =================
+    function configured() {
+        return FIREBASE_CONFIG.apiKey && !FIREBASE_CONFIG.apiKey.startsWith('YOUR_');
+    }
+
+    function initFirebase() {
+        if (!configured()) {
+            $('#loginCard').style.display = 'block';
+            const w = $('#configWarn');
+            w.style.display = 'block';
+            w.innerHTML = 'לא הוגדר Firebase. הדביקו את הקונפיג ב־<code>FIREBASE_CONFIG</code> בקובץ <code>index.html</code> (ראו README).';
+            $('#googleBtn').disabled = true;
+            $('#googleBtn').style.opacity = '.5';
+            return;
+        }
+        const app = initializeApp(FIREBASE_CONFIG);
+        auth = getAuth(app);
+        db = getFirestore(app);
+        setPersistence(auth, browserLocalPersistence).catch(() => {});
+
+        onAuthStateChanged(auth, user => {
+            currentUser = user;
+            if (user) enterApp();
+            else showLogin();
+        });
+    }
+
+    async function signIn() {
+        try {
+            await signInWithPopup(auth, new GoogleAuthProvider());
+            // onAuthStateChanged will fire and call enterApp()
+        } catch (e) {
+            if (e && e.code === 'auth/popup-closed-by-user') return;
+            toast('ההתחברות נכשלה, נסו שוב', true);
+        }
+    }
+
+    async function logout() {
+        try { await signOut(auth); } catch (_) {}
+    }
+
+    // ================= Screens =================
+    function showLogin() {
+        $('#loginCard').style.display = 'block';
+        $('#board').style.display = 'none';
+        $('#userbar').style.display = 'none';
+        $('#howto').style.display = 'none';
+        $('#submitbar').style.display = 'none';
+    }
+
+    async function enterApp() {
+        $('#loginCard').style.display = 'none';
+        $('#uAvatar').src = currentUser.photoURL || '';
+        $('#uName').textContent = currentUser.displayName || currentUser.email;
+        $('#uEmail').textContent = currentUser.email || '';
+        $('#userbar').style.display = 'flex';
+        $('#board').style.display = 'block';
+        $('#howto').style.display = 'block';
+        $('#submitbar').style.display = 'block';
+
+        renderTable();
+        // Load a previously saved guess for this user
+        try {
+            const snap = await getDoc(doc(db, 'predictions', currentUser.uid));
+            if (snap.exists()) {
+                const data = snap.data();
+                if (Array.isArray(data.order) && data.order.length === TEAMS.length) {
+                    order = sanitizeOrder(data.order);
+                    renderTable();
+                    const when = data.updatedAt ? new Date(data.updatedAt).toLocaleDateString('he-IL') : '';
+                    setHint('נטען ניחוש שמור' + (when ? ' מ־' + when : ''));
+                }
+            }
+        } catch (_) { /* offline / first time — keep default order */ }
+    }
+
+    // Ensure an order array contains exactly our team ids (drop unknown, append missing)
+    function sanitizeOrder(arr) {
+        const valid = arr.filter(id => teamById(id));
+        const seen = new Set(valid);
+        TEAMS.forEach(t => { if (!seen.has(t.id)) valid.push(t.id); });
+        return valid.slice(0, TEAMS.length);
+    }
+
+    function zoneFor(index) {
+        if (index < ZONES.champ) return 'champ';
+        if (index < ZONES.champ + ZONES.euro) return 'euro';
+        if (index >= TEAMS.length - ZONES.relegate) return 'relegate';
+        return '';
+    }
+
+    // ================= Render =================
+    function badgeHtml(t) {
+        if (t.logo) return `<img src="${t.logo}" alt="${t.he}" loading="lazy">`;
+        return t.ab || t.he.slice(0, 2);
+    }
+
+    function renderTable() {
+        const list = $('#tableList');
+        list.innerHTML = '';
+        order.forEach((id, i) => {
+            const t = teamById(id);
+            const li = document.createElement('li');
+            li.className = 'row';
+            li.dataset.id = id;
+            li.dataset.zone = zoneFor(i);
+            li.innerHTML = `
+                <div class="handle" aria-label="גרירה">
+                    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+                </div>
+                <div class="rank">${i + 1}</div>
+                <div class="logo" style="background:${t.color};color:${t.fg}">${badgeHtml(t)}</div>
+                <div class="name">
+                    <b>${t.he}</b>
+                    <span>${t.en}</span>
+                </div>
+                <div class="arrows">
+                    <button class="up" ${i === 0 ? 'disabled' : ''} aria-label="מעלה">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+                    </button>
+                    <button class="down" ${i === order.length - 1 ? 'disabled' : ''} aria-label="מטה">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                    </button>
+                </div>`;
+            list.appendChild(li);
+        });
+    }
+
+    function move(fromIdx, toIdx) {
+        if (toIdx < 0 || toIdx >= order.length || fromIdx === toIdx) return;
+        const [id] = order.splice(fromIdx, 1);
+        order.splice(toIdx, 0, id);
+        renderTable();
+    }
+
+    // Arrow buttons (delegated)
+    $('#tableList').addEventListener('click', e => {
+        const btn = e.target.closest('button');
+        if (!btn) return;
+        const li = e.target.closest('li.row');
+        const idx = order.indexOf(li.dataset.id);
+        if (btn.classList.contains('up')) move(idx, idx - 1);
+        else if (btn.classList.contains('down')) move(idx, idx + 1);
+    });
+
+    // ================= Pointer drag reorder (mouse + touch) =================
+    (function enableDrag() {
+        const list = $('#tableList');
+        let dragEl = null, placeholder = null, offsetY = 0;
+
+        list.addEventListener('pointerdown', e => {
+            const handle = e.target.closest('.handle');
+            if (!handle) return;
+            const li = e.target.closest('li.row');
+            if (!li) return;
+            e.preventDefault();
+
+            dragEl = li;
+            const rect = li.getBoundingClientRect();
+            offsetY = e.clientY - rect.top;
+
+            placeholder = li.cloneNode(false);
+            placeholder.className = 'row placeholder';
+            placeholder.style.height = rect.height + 'px';
+            li.after(placeholder);
+
+            li.classList.add('dragging');
+            li.style.position = 'fixed';
+            li.style.width = rect.width + 'px';
+            li.style.left = rect.left + 'px';
+            li.style.top = rect.top + 'px';
+            li.style.pointerEvents = 'none';
+
+            handle.setPointerCapture(e.pointerId);
+        });
+
+        list.addEventListener('pointermove', e => {
+            if (!dragEl) return;
+            dragEl.style.top = (e.clientY - offsetY) + 'px';
+
+            const centerY = e.clientY;
+            const siblings = Array.from(list.children).filter(el => el !== dragEl && el !== placeholder);
+            let placed = false;
+            for (const sib of siblings) {
+                const r = sib.getBoundingClientRect();
+                if (centerY < r.top + r.height / 2) {
+                    list.insertBefore(placeholder, sib);
+                    placed = true;
+                    break;
+                }
+            }
+            if (!placed) list.appendChild(placeholder);
+        });
+
+        function endDrag() {
+            if (!dragEl) return;
+            list.insertBefore(dragEl, placeholder);
+            placeholder.remove();
+            dragEl.classList.remove('dragging');
+            dragEl.style.position = '';
+            dragEl.style.width = dragEl.style.left = dragEl.style.top = '';
+            dragEl.style.pointerEvents = '';
+
+            order = Array.from(list.children).map(el => el.dataset.id);
+            dragEl = null; placeholder = null;
+            renderTable();
+        }
+        list.addEventListener('pointerup', endDrag);
+        list.addEventListener('pointercancel', endDrag);
+    })();
+
+    // ================= Firestore save =================
+    async function submitGuess() {
+        if (!currentUser || !db) return;
+        setSubmitting(true);
+        try {
+            await setDoc(doc(db, 'predictions', currentUser.uid), {
+                uid: currentUser.uid,
+                name: currentUser.displayName || '',
+                email: currentUser.email || '',
+                photo: currentUser.photoURL || '',
+                season: SEASON,
+                order: order.slice(),
+                updatedAt: Date.now()
+            });
+            toast('הניחוש נשמר! 🏆');
+            setHint('נשמר בהצלחה · ' + new Date().toLocaleString('he-IL'));
+        } catch (err) {
+            toast('שמירה נכשלה, נסו שוב', true);
+        } finally {
+            setSubmitting(false);
+        }
+    }
+
+    function setSubmitting(on) {
+        const btn = $('#submitBtn'), label = $('#submitLabel');
+        btn.disabled = on;
+        label.innerHTML = on ? '<span class="spin"></span> שומר…' : 'שמירת הניחוש';
+    }
+
+    // ================= UI helpers =================
+    let toastTimer;
+    function toast(msg, isErr) {
+        const el = $('#toast');
+        el.textContent = msg;
+        el.className = 'toast show' + (isErr ? ' err' : '');
+        clearTimeout(toastTimer);
+        toastTimer = setTimeout(() => { el.className = 'toast'; }, 2600);
+    }
+    function setHint(t) { $('#saveHint').textContent = t || ''; }
+
+    // ================= Wire up + boot =================
+    $('#googleBtn').addEventListener('click', signIn);
+    $('#logoutBtn').addEventListener('click', logout);
+    $('#submitBtn').addEventListener('click', submitGuess);
+
+    initFirebase();
+    </script>
+</body>
+</html>
