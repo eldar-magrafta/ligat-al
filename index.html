@@ -515,6 +515,14 @@
                     <span>הראשונה שמפטרת מאמן</span>
                     <select id="bonusCoach" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
                 </label>
+                <label class="bonus-q">
+                    <span>הקבוצה שתקבל הכי הרבה פנדלים</span>
+                    <select id="bonusPens" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
+                </label>
+                <label class="bonus-q">
+                    <span>הקבוצה שתקבל הכי הרבה אדומים</span>
+                    <select id="bonusReds" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
+                </label>
             </div>
         </section>
 
@@ -640,7 +648,7 @@
     let locked = false;               // true once the deadline passes
     let activeTab = 'guess';
     let guessSortable = null, adminSortable = null;
-    let bonus = { court: '', coach: '' }; // bonus predictions (team ids)
+    let bonus = { court: '', coach: '', pens: '', reds: '' }; // bonus predictions (team ids)
 
     // ================= Firebase init =================
     function configured() {
@@ -801,8 +809,9 @@
                     setHint('נטען ניחוש שמור' + (when ? ' מ־' + when : ''));
                 }
                 if (data.bonus) {
-                    bonus.court = teamById(data.bonus.court) ? data.bonus.court : '';
-                    bonus.coach = teamById(data.bonus.coach) ? data.bonus.coach : '';
+                    ['court', 'coach', 'pens', 'reds'].forEach(k => {
+                        bonus[k] = teamById(data.bonus[k]) ? data.bonus[k] : '';
+                    });
                     applyBonusToUI();
                 }
             }
@@ -927,22 +936,30 @@
     }
 
     // ================= Bonus predictions =================
+    // Maps each bonus <select> id to its key in the `bonus` state object
+    const BONUS_FIELDS = {
+        '#bonusCourt': 'court',
+        '#bonusCoach': 'coach',
+        '#bonusPens':  'pens',
+        '#bonusReds':  'reds'
+    };
+
     function setupBonus() {
-        ['#bonusCourt', '#bonusCoach'].forEach(sel => {
-            const el = $(sel);
+        Object.keys(BONUS_FIELDS).forEach(sel => {
+            const el = $(sel), key = BONUS_FIELDS[sel];
             TEAMS.forEach(t => {
                 const opt = document.createElement('option');
                 opt.value = t.id; opt.textContent = t.he;
                 el.appendChild(opt);
             });
+            el.addEventListener('change', e => { bonus[key] = e.target.value; });
         });
-        $('#bonusCourt').addEventListener('change', e => { bonus.court = e.target.value; });
-        $('#bonusCoach').addEventListener('change', e => { bonus.coach = e.target.value; });
     }
 
     function applyBonusToUI() {
-        $('#bonusCourt').value = bonus.court || '';
-        $('#bonusCoach').value = bonus.coach || '';
+        Object.keys(BONUS_FIELDS).forEach(sel => {
+            $(sel).value = bonus[BONUS_FIELDS[sel]] || '';
+        });
     }
 
     // ================= Firestore save =================
@@ -958,7 +975,10 @@
                 photo: currentUser.photoURL || '',
                 season: SEASON,
                 order: order.slice(),
-                bonus: { court: bonus.court || '', coach: bonus.coach || '' },
+                bonus: {
+                    court: bonus.court || '', coach: bonus.coach || '',
+                    pens:  bonus.pens  || '', reds:  bonus.reds  || ''
+                },
                 updatedAt: Date.now()
             });
             toast('הניחוש נשמר! 🏆');
@@ -1045,6 +1065,8 @@
                 const bonusHtml = pl.bonus ? `<div class="mini-bonus">
                         <div><span>🎯 אלופת בית הדין:</span> <b>${teamName(pl.bonus.court)}</b></div>
                         <div><span>🎯 הראשונה שמפטרת מאמן:</span> <b>${teamName(pl.bonus.coach)}</b></div>
+                        <div><span>🎯 הכי הרבה פנדלים:</span> <b>${teamName(pl.bonus.pens)}</b></div>
+                        <div><span>🎯 הכי הרבה אדומים:</span> <b>${teamName(pl.bonus.reds)}</b></div>
                     </div>` : '';
                 return `<div class="all-card${mine ? ' me' : ''}">
                     <button class="all-head" type="button">
@@ -1182,9 +1204,10 @@
     }
 
     function applyBonusLock() {
-        const c = $('#bonusCourt'), k = $('#bonusCoach');
-        if (c) c.disabled = true;
-        if (k) k.disabled = true;
+        ['#bonusCourt', '#bonusCoach', '#bonusPens', '#bonusReds'].forEach(sel => {
+            const el = $(sel);
+            if (el) el.disabled = true;
+        });
     }
 
     function tickCountdown() {
