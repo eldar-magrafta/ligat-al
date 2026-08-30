@@ -25,19 +25,35 @@ click **Google** → toggle **Enable**, pick a support email → **Save**.
 Firebase Console → **Build → Firestore Database → Create database** → start in
 **production mode** (or test mode) → pick a location → **Enable**.
 
-Then set rules so each signed-in user can read/write only their own prediction.
+Then set the rules below. Every signed-in player can **read** all predictions (needed for
+the leaderboard) but can only **write their own**; the real league table lives in
+`meta/standings` — readable by all signed-in players, writable only by the admin account.
 **Rules** tab → paste this → **Publish**:
 
 ```
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // Every signed-in player can read all guesses (for the leaderboard),
+    // but can only create/update their own document.
     match /predictions/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // The real league table. Anyone signed in can read it; only the admin
+    // account may update it (must match ADMIN_EMAIL in index.html).
+    match /meta/{docId} {
+      allow read:  if request.auth != null;
+      allow write: if request.auth != null
+                   && request.auth.token.email == 'eldar71191@gmail.com';
     }
   }
 }
 ```
+
+> If you change `ADMIN_EMAIL` in `index.html`, change the email in these rules to match.
 
 ## 4. Paste your config into `index.html`
 
@@ -112,6 +128,38 @@ Collection **`predictions`**, one document per user (doc id = Firebase `uid`):
 
 - `order` is the complete 14-team ranking (index 0 = champion → last = relegation).
 - Each user only ever writes their own document; re-submitting overwrites it.
+
+## Tabs
+
+The app has three tabs (the third only appears for the admin):
+
+- **הניחוש שלי** — the drag-and-drop guess editor. Loads your last saved submission and
+  lets you re-order and re-save until the deadline, after which it locks.
+- **טבלת המובילים** (leaderboard) — ranks all signed-in players against the real league
+  table. Visible to everyone signed in.
+- **עדכון טבלה** (admin only) — where the admin arranges the **real** current league
+  standings and saves them; everyone's leaderboard score recomputes from that.
+
+## Admin
+
+Only the account whose email equals `ADMIN_EMAIL` in `index.html`
+(`eldar71191@gmail.com`) sees the **עדכון טבלה** tab and can write `meta/standings`.
+After each round the admin drags the real table into its current order, types the round
+number, and presses **שמירת טבלת הליגה**.
+
+## Scoring
+
+For each player, every team costs `|guessedPosition − realPosition|` penalty points; the
+player's score is the **negative** sum of those penalties. So a perfect table = `0`, and
+the closer to `0`, the higher the rank. Example: you put Hapoel Haifa 10th but they're
+really 2nd → that team costs 8, i.e. −8 points.
+
+The real table is stored in Firestore as `meta/standings`:
+
+```json
+{ "order": ["mta", "... all 14 ids in real order ..."], "round": 3,
+  "season": "2026-27", "updatedAt": 1735500000000 }
+```
 
 ## Notes
 - Works on mobile (touch drag) and desktop (mouse drag), plus ▲▼ buttons as a fallback.

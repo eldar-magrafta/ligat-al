@@ -155,6 +155,67 @@
         }
         .config-warn code { background: #fff; padding: 1px 5px; border-radius: 5px; direction: ltr; display: inline-block; }
 
+        /* ---------- Tabs ---------- */
+        .tabs {
+            display: none;
+            gap: 6px;
+            background: #e9efea;
+            border-radius: 14px;
+            padding: 5px;
+            margin: 4px 0 14px;
+        }
+        .tab {
+            flex: 1;
+            border: none; background: transparent; cursor: pointer;
+            font: inherit; font-weight: 700; font-size: 14px; color: var(--muted);
+            padding: 10px 8px; border-radius: 10px;
+            transition: background .15s, color .15s;
+        }
+        .tab.active { background: #fff; color: var(--pitch-dark); box-shadow: 0 2px 8px rgba(8,60,34,.1); }
+
+        /* ---------- Leaderboard ---------- */
+        .lb-status {
+            background: linear-gradient(160deg, #fff, #f2f9f4);
+            border: 1px solid var(--line); border-radius: 14px;
+            padding: 12px 14px; margin-bottom: 12px;
+            font-size: 14px; color: var(--muted); text-align: center;
+        }
+        .lb-status b { color: var(--ink); }
+        .lb-list { display: flex; flex-direction: column; gap: 8px; }
+        .lb-row {
+            display: flex; align-items: center; gap: 12px;
+            background: var(--card); border: 1px solid var(--line);
+            border-radius: 16px; padding: 10px 14px 10px 12px;
+            box-shadow: 0 2px 8px rgba(8,60,34,.05);
+        }
+        .lb-row.me { border-color: var(--pitch-light); background: #f2fbf5; }
+        .lb-pos {
+            flex: 0 0 30px; text-align: center;
+            font-size: 18px; font-weight: 800; color: var(--pitch-dark);
+            font-variant-numeric: tabular-nums;
+        }
+        .lb-row.top1 .lb-pos { color: var(--gold); }
+        .lb-ava {
+            flex: 0 0 40px; width: 40px; height: 40px; border-radius: 50%;
+            background: #e9efea; overflow: hidden;
+            display: flex; align-items: center; justify-content: center; font-size: 20px;
+        }
+        .lb-ava img { width: 100%; height: 100%; object-fit: cover; }
+        .lb-loading { text-align: center; color: var(--muted); padding: 24px 10px; font-size: 15px; }
+        .lb-name { flex: 1; min-width: 0; font-weight: 700; font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .lb-name small { display: block; font-weight: 500; font-size: 11px; color: var(--muted); }
+        .lb-pts { flex: 0 0 auto; font-weight: 800; font-size: 18px; font-variant-numeric: tabular-nums; }
+        .lb-pts span { font-size: 11px; font-weight: 600; color: var(--muted); display: block; text-align: center; }
+        .lb-empty { text-align: center; color: var(--muted); padding: 30px 10px; font-size: 15px; }
+        .lb-formula { font-size: 12px; color: var(--muted); text-align: center; line-height: 1.5; margin-top: 16px; }
+        .medal { font-size: 18px; }
+
+        .admin-round { display: block; font-weight: 600; font-size: 14px; color: var(--muted); margin: 0 0 12px; }
+        .admin-round input {
+            font: inherit; padding: 8px 10px; border: 1px solid var(--line);
+            border-radius: 10px; width: 90px; margin-inline-start: 6px;
+        }
+
         /* ---------- Instruction ---------- */
         .howto {
             display: none;
@@ -334,7 +395,14 @@
             <button class="btn-ghost" id="logoutBtn">התנתקות</button>
         </div>
 
-        <!-- Board -->
+        <!-- Tabs -->
+        <div class="tabs" id="tabs">
+            <button class="tab active" data-tab="guess">הניחוש שלי</button>
+            <button class="tab" data-tab="board">טבלת המובילים</button>
+            <button class="tab" data-tab="admin" id="adminTab" style="display:none">עדכון טבלה</button>
+        </div>
+
+        <!-- My guess -->
         <section id="board">
             <div class="howto" id="howto">
                 גררו את הקבוצות מעלה ומטה כדי לסדר את הטבלה — <b>מקום 1 = אלופה</b>, מקום 14 = יורדת ליגה.
@@ -348,6 +416,29 @@
                 <span><i style="background:var(--euro)"></i>אירופה</span>
                 <span><i style="background:var(--relegate)"></i>ירידת ליגה</span>
             </div>
+        </section>
+
+        <!-- Leaderboard -->
+        <section id="leaderView" style="display:none">
+            <div class="lb-status" id="lbStatus"></div>
+            <div class="lb-list" id="leaderList"></div>
+            <p class="lb-formula">
+                ניקוד: לכל קבוצה מורידים נקודות לפי המרחק בין המקום שניחשתם למקום האמיתי בליגה.
+                הכי קרוב ל־0 = מוביל.
+            </p>
+        </section>
+
+        <!-- Admin: real league table editor -->
+        <section id="adminView" style="display:none">
+            <div class="howto">
+                <b>ניהול:</b> סדרו כאן את מצב הליגה <b>האמיתי</b> כרגע ושמרו — הניקוד של כל המשתתפים יתעדכן.
+            </div>
+            <label class="admin-round">מחזור נוכחי:
+                <input type="number" id="adminRound" min="1" placeholder="למשל 3">
+            </label>
+            <ol class="table" id="adminList"></ol>
+            <button class="btn-primary" id="adminSaveBtn" style="margin-top:12px">שמירת טבלת הליגה</button>
+            <p class="savehint" id="adminHint"></p>
         </section>
     </div>
 
@@ -370,7 +461,7 @@
         getAuth, signInWithPopup, GoogleAuthProvider, onAuthStateChanged,
         signOut, setPersistence, browserLocalPersistence
     } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-auth.js';
-    import { getFirestore, doc, getDoc, setDoc } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
+    import { getFirestore, doc, getDoc, setDoc, collection, getDocs } from 'https://www.gstatic.com/firebasejs/11.6.0/firebase-firestore.js';
 
     // =====================================================================
     //  CONFIG  — paste your Firebase web-app config here (see README.md)
@@ -386,6 +477,9 @@
     };
 
     const SEASON = '2026-27';
+
+    // Only this account can edit the real league table (the "עדכון טבלה" tab).
+    const ADMIN_EMAIL = 'eldar71191@gmail.com';
 
     // Submission deadline — 30 Aug 2026, 23:59:59 Israel time (IDT = UTC+3).
     // After this moment guesses lock and can no longer be saved/changed.
@@ -421,8 +515,11 @@
 
     let auth = null, db = null;
     let currentUser = null;           // firebase user
-    let order = TEAMS.map(t => t.id); // current ordering of team ids
+    let order = TEAMS.map(t => t.id); // the player's guess ordering
+    let adminOrder = TEAMS.map(t => t.id); // the real league table (admin editor)
     let locked = false;               // true once the deadline passes
+    let activeTab = 'guess';
+    let guessSortable = null, adminSortable = null;
 
     // ================= Firebase init =================
     function configured() {
@@ -468,7 +565,10 @@
     // ================= Screens =================
     function showLogin() {
         $('#loginCard').style.display = 'block';
+        $('#tabs').style.display = 'none';
         $('#board').style.display = 'none';
+        $('#leaderView').style.display = 'none';
+        $('#adminView').style.display = 'none';
         $('#userbar').style.display = 'none';
         $('#howto').style.display = 'none';
         $('#submitbar').style.display = 'none';
@@ -480,24 +580,41 @@
         $('#uName').textContent = currentUser.displayName || currentUser.email;
         $('#uEmail').textContent = currentUser.email || '';
         $('#userbar').style.display = 'flex';
-        $('#board').style.display = 'block';
-        $('#howto').style.display = 'block';
-        $('#submitbar').style.display = 'block';
+        $('#tabs').style.display = 'flex';
 
-        renderTable();
-        // Load a previously saved guess for this user
+        // Admin tab is only visible to the configured admin account
+        $('#adminTab').style.display =
+            (currentUser.email === ADMIN_EMAIL) ? '' : 'none';
+
+        guessSortable.render();
+        switchTab('guess');
+
+        // Load a previously saved guess for this user (their final valid submission)
         try {
             const snap = await getDoc(doc(db, 'predictions', currentUser.uid));
             if (snap.exists()) {
                 const data = snap.data();
                 if (Array.isArray(data.order) && data.order.length === TEAMS.length) {
                     order = sanitizeOrder(data.order);
-                    renderTable();
+                    guessSortable.render();
                     const when = data.updatedAt ? new Date(data.updatedAt).toLocaleDateString('he-IL') : '';
                     setHint('נטען ניחוש שמור' + (when ? ' מ־' + when : ''));
                 }
             }
         } catch (_) { /* offline / first time — keep default order */ }
+    }
+
+    // ================= Tabs =================
+    function switchTab(tab) {
+        activeTab = tab;
+        document.querySelectorAll('#tabs .tab').forEach(b =>
+            b.classList.toggle('active', b.dataset.tab === tab));
+        $('#board').style.display      = tab === 'guess' ? 'block' : 'none';
+        $('#submitbar').style.display  = tab === 'guess' ? 'block' : 'none';
+        $('#leaderView').style.display = tab === 'board' ? 'block' : 'none';
+        $('#adminView').style.display  = tab === 'admin' ? 'block' : 'none';
+        if (tab === 'board') loadLeaderboard();
+        if (tab === 'admin') loadStandingsIntoAdmin();
     }
 
     // Ensure an order array contains exactly our team ids (drop unknown, append missing)
@@ -521,121 +638,112 @@
         return t.ab || t.he.slice(0, 2);
     }
 
-    function renderTable() {
-        const list = $('#tableList');
-        list.innerHTML = '';
-        order.forEach((id, i) => {
-            const t = teamById(id);
-            const li = document.createElement('li');
-            li.className = 'row';
-            li.dataset.id = id;
-            li.dataset.zone = zoneFor(i);
-            li.innerHTML = `
-                <div class="handle" aria-label="גרירה">
-                    <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
-                </div>
-                <div class="rank">${i + 1}</div>
-                <div class="logo" style="background:${t.color};color:${t.fg}">${badgeHtml(t)}</div>
-                <div class="name">
-                    <b>${t.he}</b>
-                    <span>${t.en}</span>
-                </div>
-                <div class="arrows">
-                    <button class="up" ${i === 0 ? 'disabled' : ''} aria-label="מעלה">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
-                    </button>
-                    <button class="down" ${i === order.length - 1 ? 'disabled' : ''} aria-label="מטה">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-                    </button>
-                </div>`;
-            list.appendChild(li);
+    // ================= Sortable list factory (used by guess + admin editors) =================
+    function makeSortable(listEl, getOrder, setOrder, isLocked) {
+        function render() {
+            const ord = getOrder();
+            listEl.innerHTML = '';
+            ord.forEach((id, i) => {
+                const t = teamById(id);
+                if (!t) return;
+                const li = document.createElement('li');
+                li.className = 'row';
+                li.dataset.id = id;
+                li.dataset.zone = zoneFor(i);
+                li.innerHTML = `
+                    <div class="handle" aria-label="גרירה">
+                        <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.6"/><circle cx="15" cy="6" r="1.6"/><circle cx="9" cy="12" r="1.6"/><circle cx="15" cy="12" r="1.6"/><circle cx="9" cy="18" r="1.6"/><circle cx="15" cy="18" r="1.6"/></svg>
+                    </div>
+                    <div class="rank">${i + 1}</div>
+                    <div class="logo" style="background:${t.color};color:${t.fg}">${badgeHtml(t)}</div>
+                    <div class="name">
+                        <b>${t.he}</b>
+                        <span>${t.en}</span>
+                    </div>
+                    <div class="arrows">
+                        <button class="up" ${i === 0 ? 'disabled' : ''} aria-label="מעלה">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
+                        </button>
+                        <button class="down" ${i === ord.length - 1 ? 'disabled' : ''} aria-label="מטה">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
+                        </button>
+                    </div>`;
+                listEl.appendChild(li);
+            });
+        }
+
+        function move(fromIdx, toIdx) {
+            if (isLocked()) return;
+            const ord = getOrder().slice();
+            if (toIdx < 0 || toIdx >= ord.length || fromIdx === toIdx) return;
+            const [id] = ord.splice(fromIdx, 1);
+            ord.splice(toIdx, 0, id);
+            setOrder(ord);
+            render();
+        }
+
+        listEl.addEventListener('click', e => {
+            const btn = e.target.closest('button');
+            if (!btn) return;
+            const li = e.target.closest('li.row');
+            const idx = getOrder().indexOf(li.dataset.id);
+            if (btn.classList.contains('up')) move(idx, idx - 1);
+            else if (btn.classList.contains('down')) move(idx, idx + 1);
         });
-    }
 
-    function move(fromIdx, toIdx) {
-        if (locked) return;
-        if (toIdx < 0 || toIdx >= order.length || fromIdx === toIdx) return;
-        const [id] = order.splice(fromIdx, 1);
-        order.splice(toIdx, 0, id);
-        renderTable();
-    }
-
-    // Arrow buttons (delegated)
-    $('#tableList').addEventListener('click', e => {
-        const btn = e.target.closest('button');
-        if (!btn) return;
-        const li = e.target.closest('li.row');
-        const idx = order.indexOf(li.dataset.id);
-        if (btn.classList.contains('up')) move(idx, idx - 1);
-        else if (btn.classList.contains('down')) move(idx, idx + 1);
-    });
-
-    // ================= Pointer drag reorder (mouse + touch) =================
-    (function enableDrag() {
-        const list = $('#tableList');
+        // Pointer drag reorder (mouse + touch)
         let dragEl = null, placeholder = null, offsetY = 0;
-
-        list.addEventListener('pointerdown', e => {
-            if (locked) return;
+        listEl.addEventListener('pointerdown', e => {
+            if (isLocked()) return;
             const handle = e.target.closest('.handle');
             if (!handle) return;
             const li = e.target.closest('li.row');
             if (!li) return;
             e.preventDefault();
-
             dragEl = li;
             const rect = li.getBoundingClientRect();
             offsetY = e.clientY - rect.top;
-
             placeholder = li.cloneNode(false);
             placeholder.className = 'row placeholder';
             placeholder.style.height = rect.height + 'px';
             li.after(placeholder);
-
             li.classList.add('dragging');
             li.style.position = 'fixed';
             li.style.width = rect.width + 'px';
             li.style.left = rect.left + 'px';
             li.style.top = rect.top + 'px';
             li.style.pointerEvents = 'none';
-
             handle.setPointerCapture(e.pointerId);
         });
-
-        list.addEventListener('pointermove', e => {
+        listEl.addEventListener('pointermove', e => {
             if (!dragEl) return;
             dragEl.style.top = (e.clientY - offsetY) + 'px';
-
             const centerY = e.clientY;
-            const siblings = Array.from(list.children).filter(el => el !== dragEl && el !== placeholder);
+            const siblings = Array.from(listEl.children).filter(el => el !== dragEl && el !== placeholder);
             let placed = false;
             for (const sib of siblings) {
                 const r = sib.getBoundingClientRect();
-                if (centerY < r.top + r.height / 2) {
-                    list.insertBefore(placeholder, sib);
-                    placed = true;
-                    break;
-                }
+                if (centerY < r.top + r.height / 2) { listEl.insertBefore(placeholder, sib); placed = true; break; }
             }
-            if (!placed) list.appendChild(placeholder);
+            if (!placed) listEl.appendChild(placeholder);
         });
-
         function endDrag() {
             if (!dragEl) return;
-            list.insertBefore(dragEl, placeholder);
+            listEl.insertBefore(dragEl, placeholder);
             placeholder.remove();
             dragEl.classList.remove('dragging');
             dragEl.style.position = '';
             dragEl.style.width = dragEl.style.left = dragEl.style.top = '';
             dragEl.style.pointerEvents = '';
-
-            order = Array.from(list.children).map(el => el.dataset.id);
+            setOrder(Array.from(listEl.children).map(el => el.dataset.id));
             dragEl = null; placeholder = null;
-            renderTable();
+            render();
         }
-        list.addEventListener('pointerup', endDrag);
-        list.addEventListener('pointercancel', endDrag);
-    })();
+        listEl.addEventListener('pointerup', endDrag);
+        listEl.addEventListener('pointercancel', endDrag);
+
+        return { render };
+    }
 
     // ================= Firestore save =================
     async function submitGuess() {
@@ -665,6 +773,110 @@
         const btn = $('#submitBtn'), label = $('#submitLabel');
         btn.disabled = on;
         label.innerHTML = on ? '<span class="spin"></span> שומר…' : 'שמירת הניחוש';
+    }
+
+    // ================= Leaderboard (real table vs. each guess) =================
+    // Score per player = -Σ |guessedPosition - realPosition| over all teams.
+    // Closest to 0 wins. A team the player ranked far from its real spot costs more.
+    function computeScore(guessOrder, actualOrder) {
+        const realPos = {};
+        actualOrder.forEach((id, i) => { realPos[id] = i; });
+        let penalty = 0;
+        guessOrder.forEach((id, i) => {
+            if (realPos[id] === undefined) return;
+            penalty += Math.abs(i - realPos[id]);
+        });
+        return -penalty;
+    }
+
+    async function loadLeaderboard() {
+        const status = $('#lbStatus'), list = $('#leaderList');
+        list.innerHTML = '<div class="lb-loading">טוען…</div>';
+        try {
+            // 1) The real, admin-maintained league table
+            const stSnap = await getDoc(doc(db, 'meta', 'standings'));
+            if (!stSnap.exists() || !Array.isArray(stSnap.data().order)) {
+                status.innerHTML = '';
+                list.innerHTML = '<div class="lb-empty">הטבלה האמיתית עדיין לא עודכנה. חזרו אחרי המחזור הראשון.</div>';
+                return;
+            }
+            const st = stSnap.data();
+            const actualOrder = sanitizeOrder(st.order);
+            const roundTxt = st.round ? 'מחזור ' + st.round : '';
+            const whenTxt = st.updatedAt ? new Date(st.updatedAt).toLocaleDateString('he-IL') : '';
+            status.innerHTML = 'מבוסס על הטבלה האמיתית' +
+                (roundTxt ? ' · ' + roundTxt : '') +
+                (whenTxt ? ' · עודכן ' + whenTxt : '');
+
+            // 2) All players' guesses
+            const snaps = await getDocs(collection(db, 'predictions'));
+            const rows = [];
+            snaps.forEach(d => {
+                const p = d.data();
+                if (!Array.isArray(p.order)) return;
+                rows.push({
+                    uid: p.uid || d.id,
+                    name: p.name || p.email || 'שחקן',
+                    photo: p.photo || '',
+                    score: computeScore(sanitizeOrder(p.order), actualOrder)
+                });
+            });
+
+            if (!rows.length) {
+                list.innerHTML = '<div class="lb-empty">עדיין אין ניחושים שמורים.</div>';
+                return;
+            }
+
+            rows.sort((a, b) => b.score - a.score); // closest to 0 first
+            const medals = ['🥇', '🥈', '🥉'];
+            list.innerHTML = rows.map((r, i) => `
+                <div class="lb-row${r.uid === currentUser.uid ? ' me' : ''}${i === 0 ? ' top1' : ''}">
+                    <div class="lb-pos">${medals[i] ? `<span class="medal">${medals[i]}</span>` : (i + 1)}</div>
+                    <div class="lb-ava">${r.photo ? `<img src="${r.photo}" alt="">` : '👤'}</div>
+                    <div class="lb-name">${r.name}${r.uid === currentUser.uid ? ' <small>אתה</small>' : ''}</div>
+                    <div class="lb-pts">${r.score}<span>נק'</span></div>
+                </div>`).join('');
+        } catch (err) {
+            status.innerHTML = '';
+            list.innerHTML = '<div class="lb-empty">טעינת הטבלה נכשלה. נסו לרענן.</div>';
+        }
+    }
+
+    // ================= Admin: edit the real league table =================
+    async function loadStandingsIntoAdmin() {
+        try {
+            const snap = await getDoc(doc(db, 'meta', 'standings'));
+            if (snap.exists() && Array.isArray(snap.data().order)) {
+                adminOrder = sanitizeOrder(snap.data().order);
+                if (snap.data().round) $('#adminRound').value = snap.data().round;
+            } else {
+                adminOrder = TEAMS.map(t => t.id);
+            }
+        } catch (_) {
+            adminOrder = TEAMS.map(t => t.id);
+        }
+        adminSortable.render();
+    }
+
+    async function saveStandings() {
+        if (!currentUser || currentUser.email !== ADMIN_EMAIL) return;
+        const btn = $('#adminSaveBtn');
+        btn.disabled = true;
+        const round = parseInt($('#adminRound').value, 10);
+        try {
+            await setDoc(doc(db, 'meta', 'standings'), {
+                order: adminOrder.slice(),
+                round: Number.isFinite(round) ? round : null,
+                season: SEASON,
+                updatedAt: Date.now()
+            });
+            $('#adminHint').textContent = 'הטבלה נשמרה · ' + new Date().toLocaleString('he-IL');
+            toast('טבלת הליגה עודכנה ✅');
+        } catch (err) {
+            toast('שמירת הטבלה נכשלה', true);
+        } finally {
+            btn.disabled = false;
+        }
     }
 
     // ================= UI helpers =================
@@ -707,9 +919,16 @@
     }
 
     // ================= Wire up + boot =================
+    // Guess editor — locks after the deadline. Admin editor — never locks.
+    guessSortable = makeSortable($('#tableList'), () => order, o => { order = o; }, () => locked);
+    adminSortable = makeSortable($('#adminList'), () => adminOrder, o => { adminOrder = o; }, () => false);
+
     $('#googleBtn').addEventListener('click', signIn);
     $('#logoutBtn').addEventListener('click', logout);
     $('#submitBtn').addEventListener('click', submitGuess);
+    $('#adminSaveBtn').addEventListener('click', saveStandings);
+    document.querySelectorAll('#tabs .tab').forEach(b =>
+        b.addEventListener('click', () => switchTab(b.dataset.tab)));
 
     tickCountdown();
     setInterval(tickCountdown, 1000);
