@@ -1427,10 +1427,8 @@
 
     function applyLock() {
         locked = true;
-        $('#countdown').classList.add('closed');
-        $('#cdTitle').textContent = 'ההגשה נסגרה';
-        $('#cdClock').classList.add('done');
-        $('#cdClock').innerHTML = '🔒 המועד האחרון עבר';
+        // After the deadline, just hide the countdown box entirely (no red "closed" banner).
+        $('#countdown').style.display = 'none';
         const btn = $('#submitBtn');
         btn.disabled = true;
         $('#submitLabel').textContent = 'ההגשה נסגרה 🔒';
