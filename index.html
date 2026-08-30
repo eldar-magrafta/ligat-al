@@ -270,6 +270,8 @@
         .mini-logo { flex: 0 0 26px; width: 26px; height: 26px; border-radius: 7px; background: #fff; box-shadow: inset 0 0 0 1px var(--line); overflow: hidden; display: grid; place-items: center; }
         .mini-logo img { width: 100%; height: 100%; object-fit: contain; padding: 2px; }
         .mini-name { font-size: 13px; font-weight: 600; }
+        .mini-bonus { margin-top: 8px; padding-top: 8px; border-top: 1px dashed var(--line); font-size: 12px; color: var(--muted); display: flex; flex-direction: column; gap: 3px; }
+        .mini-bonus b { color: var(--ink); }
 
         .admin-round { display: block; font-weight: 600; font-size: 14px; color: var(--muted); margin: 0 0 12px; }
         .admin-round input {
@@ -369,6 +371,25 @@
             margin: 14px 0 4px; font-size: 12px; color: var(--muted); font-weight: 600;
         }
         .legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; margin-inline-end: 5px; vertical-align: -1px; }
+
+        /* ---------- Bonus predictions ---------- */
+        .bonus {
+            margin-top: 18px; padding: 16px 14px;
+            background: linear-gradient(160deg, #fff, #f2f9f4);
+            border: 1px solid var(--line); border-radius: 18px;
+            box-shadow: 0 2px 8px rgba(8,60,34,.05);
+        }
+        .bonus h3 { margin: 0 0 12px; font-size: 16px; font-weight: 800; color: var(--pitch-dark); }
+        .bonus-q { display: flex; flex-direction: column; gap: 6px; margin-bottom: 12px; }
+        .bonus-q:last-child { margin-bottom: 0; }
+        .bonus-q > span { font-size: 14px; font-weight: 700; }
+        .bonus-select {
+            font: inherit; font-size: 15px; font-weight: 600;
+            padding: 11px 12px; border: 1px solid var(--line); border-radius: 12px;
+            background: #fff; color: var(--ink); cursor: pointer; width: 100%;
+        }
+        .bonus-select:focus { outline: none; border-color: var(--pitch-light); }
+        .bonus-select:disabled { opacity: .6; cursor: default; background: #f4f7f4; }
 
         /* ---------- Submit bar ---------- */
         .submitbar {
@@ -482,6 +503,18 @@
                 <span><i style="background:var(--champ)"></i>אלופה</span>
                 <span><i style="background:var(--euro)"></i>אירופה</span>
                 <span><i style="background:var(--relegate)"></i>ירידת ליגה</span>
+            </div>
+
+            <div class="bonus" id="bonus">
+                <h3>🎯 ניחושי בונוס</h3>
+                <label class="bonus-q">
+                    <span>אלופת בית הדין</span>
+                    <select id="bonusCourt" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
+                </label>
+                <label class="bonus-q">
+                    <span>הראשונה שמפטרת מאמן</span>
+                    <select id="bonusCoach" class="bonus-select"><option value="">בחרו קבוצה…</option></select>
+                </label>
             </div>
         </section>
 
@@ -607,6 +640,7 @@
     let locked = false;               // true once the deadline passes
     let activeTab = 'guess';
     let guessSortable = null, adminSortable = null;
+    let bonus = { court: '', coach: '' }; // bonus predictions (team ids)
 
     // ================= Firebase init =================
     function configured() {
@@ -752,6 +786,7 @@
             (currentUser.email === ADMIN_EMAIL) ? '' : 'none';
 
         guessSortable.render();
+        applyBonusToUI();
         switchTab('guess');
 
         // Load a previously saved guess for this user (their final valid submission)
@@ -765,8 +800,14 @@
                     const when = data.updatedAt ? new Date(data.updatedAt).toLocaleDateString('he-IL') : '';
                     setHint('נטען ניחוש שמור' + (when ? ' מ־' + when : ''));
                 }
+                if (data.bonus) {
+                    bonus.court = teamById(data.bonus.court) ? data.bonus.court : '';
+                    bonus.coach = teamById(data.bonus.coach) ? data.bonus.coach : '';
+                    applyBonusToUI();
+                }
             }
         } catch (_) { /* offline / first time — keep default order */ }
+        if (locked) applyBonusLock();
     }
 
     // ================= Tabs =================
@@ -885,6 +926,25 @@
         return { render };
     }
 
+    // ================= Bonus predictions =================
+    function setupBonus() {
+        ['#bonusCourt', '#bonusCoach'].forEach(sel => {
+            const el = $(sel);
+            TEAMS.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t.id; opt.textContent = t.he;
+                el.appendChild(opt);
+            });
+        });
+        $('#bonusCourt').addEventListener('change', e => { bonus.court = e.target.value; });
+        $('#bonusCoach').addEventListener('change', e => { bonus.coach = e.target.value; });
+    }
+
+    function applyBonusToUI() {
+        $('#bonusCourt').value = bonus.court || '';
+        $('#bonusCoach').value = bonus.coach || '';
+    }
+
     // ================= Firestore save =================
     async function submitGuess() {
         if (!currentUser || !db) return;
@@ -898,6 +958,7 @@
                 photo: currentUser.photoURL || '',
                 season: SEASON,
                 order: order.slice(),
+                bonus: { court: bonus.court || '', coach: bonus.coach || '' },
                 updatedAt: Date.now()
             });
             toast('הניחוש נשמר! 🏆');
@@ -957,7 +1018,8 @@
                     uid: p.uid || d.id,
                     name: p.name || p.email || 'שחקן',
                     photo: p.photo || '',
-                    order: sanitizeOrder(p.order)
+                    order: sanitizeOrder(p.order),
+                    bonus: p.bonus || null
                 });
             });
             if (!players.length) {
@@ -979,13 +1041,18 @@
                         <div class="mini-name">${t.he}</div>
                     </div>`;
                 }).join('');
+                const teamName = id => { const t = teamById(id); return t ? t.he : '—'; };
+                const bonusHtml = pl.bonus ? `<div class="mini-bonus">
+                        <div><span>🎯 אלופת בית הדין:</span> <b>${teamName(pl.bonus.court)}</b></div>
+                        <div><span>🎯 הראשונה שמפטרת מאמן:</span> <b>${teamName(pl.bonus.coach)}</b></div>
+                    </div>` : '';
                 return `<div class="all-card${mine ? ' me' : ''}">
                     <button class="all-head" type="button">
                         <span class="lb-ava">${pl.photo ? `<img src="${pl.photo}" alt="">` : '👤'}</span>
                         <b>${pl.name}${mine ? ' <small style="color:var(--muted);font-weight:500">(אתה)</small>' : ''}</b>
                         <svg class="chev" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
                     </button>
-                    <div class="all-body">${rows}</div>
+                    <div class="all-body">${rows}${bonusHtml}</div>
                 </div>`;
             }).join('');
 
@@ -1111,6 +1178,13 @@
         btn.disabled = true;
         $('#submitLabel').textContent = 'ההגשה נסגרה 🔒';
         setHint('לא ניתן עוד לשנות את הניחוש');
+        applyBonusLock();
+    }
+
+    function applyBonusLock() {
+        const c = $('#bonusCourt'), k = $('#bonusCoach');
+        if (c) c.disabled = true;
+        if (k) k.disabled = true;
     }
 
     function tickCountdown() {
@@ -1130,6 +1204,7 @@
     // Guess editor — locks after the deadline. Admin editor — never locks.
     guessSortable = makeSortable($('#tableList'), () => order, o => { order = o; }, () => locked);
     adminSortable = makeSortable($('#adminList'), () => adminOrder, o => { adminOrder = o; }, () => false);
+    setupBonus();
 
     $('#googleBtn').addEventListener('click', signIn);
     $('#logoutBtn').addEventListener('click', logout);
