@@ -289,15 +289,6 @@
         .name b { display: block; font-size: 15px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .name span { display: block; font-size: 11px; color: var(--muted); direction: ltr; text-align: right; }
 
-        .arrows { display: flex; flex-direction: column; gap: 2px; }
-        .arrows button {
-            border: none; background: #eef3ef; color: var(--pitch-dark);
-            width: 30px; height: 20px; border-radius: 7px;
-            display: grid; place-items: center; cursor: pointer; padding: 0;
-        }
-        .arrows button:active { background: #dbe8df; }
-        .arrows button:disabled { opacity: .3; cursor: default; }
-        .arrows svg { width: 14px; height: 14px; }
 
         .handle {
             flex: 0 0 30px; height: 40px;
@@ -403,7 +394,7 @@
         <section id="board">
             <div class="howto" id="howto">
                 גררו את הקבוצות מעלה ומטה כדי לסדר את הטבלה — <b>מקום 1 = אלופה</b>, מקום 14 = יורדת ליגה.
-                אפשר גם להשתמש בחיצים ▲▼. בסיום לחצו על "שמירת הניחוש".
+                בסיום לחצו על "שמירת הניחוש".
             </div>
 
             <ol class="table" id="tableList"></ol>
@@ -656,37 +647,10 @@
                     <div class="name">
                         <b>${t.he}</b>
                         <span>${t.en}</span>
-                    </div>
-                    <div class="arrows">
-                        <button class="up" ${i === 0 ? 'disabled' : ''} aria-label="מעלה">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 15l6-6 6 6"/></svg>
-                        </button>
-                        <button class="down" ${i === ord.length - 1 ? 'disabled' : ''} aria-label="מטה">
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6"/></svg>
-                        </button>
                     </div>`;
                 listEl.appendChild(li);
             });
         }
-
-        function move(fromIdx, toIdx) {
-            if (isLocked()) return;
-            const ord = getOrder().slice();
-            if (toIdx < 0 || toIdx >= ord.length || fromIdx === toIdx) return;
-            const [id] = ord.splice(fromIdx, 1);
-            ord.splice(toIdx, 0, id);
-            setOrder(ord);
-            render();
-        }
-
-        listEl.addEventListener('click', e => {
-            const btn = e.target.closest('button');
-            if (!btn) return;
-            const li = e.target.closest('li.row');
-            const idx = getOrder().indexOf(li.dataset.id);
-            if (btn.classList.contains('up')) move(idx, idx - 1);
-            else if (btn.classList.contains('down')) move(idx, idx + 1);
-        });
 
         // Pointer drag reorder (mouse + touch)
         let dragEl = null, placeholder = null, offsetY = 0;
