@@ -25,9 +25,12 @@ click **Google** → toggle **Enable**, pick a support email → **Save**.
 Firebase Console → **Build → Firestore Database → Create database** → start in
 **production mode** (or test mode) → pick a location → **Enable**.
 
-Then set the rules below. Every signed-in player can **read** all predictions (needed for
-the leaderboard) but can only **write their own**; the real league table lives in
-`meta/standings` — readable by all signed-in players, writable only by the admin account.
+Set the rules below (also saved in [`firestore.rules`](firestore.rules)). A player can
+always read & write **their own** guess, but reading **anyone else's** — a single doc or
+the whole collection — is blocked at the database level **until the deadline passes**
+(30 Aug 2026 23:59:59 Israel time). So no one can peek at others' tables early, even via
+the browser console or the raw API. The real league table lives in `meta/standings`,
+readable by all signed-in players and writable only by the admin account.
 **Rules** tab → paste this → **Publish**:
 
 ```
@@ -35,15 +38,19 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Every signed-in player can read all guesses (for the leaderboard),
-    // but can only create/update their own document.
-    match /predictions/{uid} {
-      allow read:  if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == uid;
+    // Submission deadline: 30 Aug 2026, 23:59:59 Israel time (UTC+3) = 20:59:59 UTC.
+    // Keep in sync with DEADLINE in index.html.
+    function afterDeadline() {
+      return request.time >
+             timestamp.date(2026, 8, 30) + duration.time(20, 59, 59, 0);
     }
 
-    // The real league table. Anyone signed in can read it; only the admin
-    // account may update it (must match ADMIN_EMAIL in index.html).
+    match /predictions/{uid} {
+      allow write: if request.auth != null && request.auth.uid == uid;
+      allow read:  if request.auth != null
+                   && (request.auth.uid == uid || afterDeadline());
+    }
+
     match /meta/{docId} {
       allow read:  if request.auth != null;
       allow write: if request.auth != null
@@ -53,7 +60,10 @@ service cloud.firestore {
 }
 ```
 
-> If you change `ADMIN_EMAIL` in `index.html`, change the email in these rules to match.
+> If you change `ADMIN_EMAIL` or `DEADLINE` in `index.html`, update the email / deadline
+> in these rules to match. Note: because reading others' guesses is now blocked before the
+> deadline, the leaderboard also only works after it — which is fine, since the real
+> standings (and thus any score) don't exist until the season is underway.
 
 ## 4. Paste your config into `index.html`
 
